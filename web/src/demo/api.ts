@@ -1,10 +1,24 @@
 // A stand-in for the HTTP API that runs entirely in the browser (the public demo has no server).
 // Same routes, same JSON, same error messages; topics are kept in localStorage.
 import { QuerySyntaxError, parse } from "../../../src/query/index.js";
+import { toIso3 } from "../../../src/registry/language.js";
 import { DemoArticle, DemoIndex, FacetName } from "./engine";
+
+/** One domain of the registry snapshot. Times are relative to when the snapshot was taken, like sources. */
+export interface DemoRegistryRecord {
+  domain: string;
+  articleCount: number;
+  languages: string[];
+  country?: string;
+  aggregator?: boolean;
+  /** The outcome of the last attempt to turn the domain into a crawled source; absent when never tried. */
+  crawl?: "active" | "no_feed" | "unreachable" | "blocked";
+  lastSeenAgoMs: number;
+}
 
 export interface DemoSource {
   name: string;
+  origin?: "curated" | "registry";
   domain: string;
   sourcetype: string;
   country?: string;
@@ -26,7 +40,25 @@ export interface DemoData {
   articles: DemoArticle[];
   sources: DemoSource[];
   topics: DemoTopicSeed[];
+  /** The source registry snapshot; optional, the demo works without it. */
+  registry?: DemoRegistryRecord[];
 }
+/** What `demo-registry.json` holds: the registry and the sources promoted from it. */
+export interface RegistrySnapshot {
+  registry: DemoRegistryRecord[];
+  sources: DemoSource[];
+}
+
+/**
+ * The main snapshot plus the registry snapshot. A missing or malformed registry file leaves the demo as it was,
+ * and a source already in the main snapshot is never listed twice.
+ */
+export function withRegistrySnapshot(data: DemoData, extra: RegistrySnapshot | null | undefined): DemoData {
+  if (!extra || !Array.isArray(extra.registry) || !Array.isArray(extra.sources)) return data;
+  const have = new Set(data.sources.map((s) => s.name));
+  return { ...data, registry: extra.registry, sources: [...data.sources, ...extra.sources.filter((s) => !have.has(s.name))] };
+}
+
 interface StoredTopic extends DemoTopicSeed { id: string }
 interface StorageLike { getItem(k: string): string | null; setItem(k: string, v: string): void }
 
@@ -111,6 +143,7 @@ export function createDemoFetch(
         200,
         data.sources.map((s) => ({
           name: s.name,
+          ...(s.origin && { origin: s.origin }),
           domain: s.domain,
           sourcetype: s.sourcetype,
           country: s.country,
@@ -129,6 +162,36 @@ export function createDemoFetch(
           }),
         })),
       );
+    }
+
+    // Same filters and order as the server's GET /registry, over the snapshot.
+    if (method === "GET" && path === "/registry") {
+      const at = now().getTime();
+      const lang = q.get("lang")?.trim().toLowerCase();
+      const needle = q.get("q")?.trim().toLowerCase();
+      const from = Math.max(0, Number(q.get("from") ?? 0) || 0);
+      const size = Math.min(500, Math.max(1, Number(q.get("size") ?? 50) || 50));
+      const matching = (data.registry ?? [])
+        .filter((r) => !lang || r.languages.includes(toIso3(lang)))
+        .filter((r) => !needle || r.domain.toLowerCase().includes(needle))
+        .filter((r) => q.get("hideAggregators") !== "true" || !r.aggregator)
+        .sort((a, b) => b.articleCount - a.articleCount || a.domain.localeCompare(b.domain));
+      return json(200, {
+        total: matching.length,
+        items: matching.slice(from, from + size).map((r) => {
+          const lastSeen = new Date(at - r.lastSeenAgoMs).toISOString();
+          return {
+            domain: r.domain,
+            firstSeen: lastSeen,
+            lastSeen,
+            articleCount: r.articleCount,
+            languages: r.languages,
+            ...(r.country && { country: r.country }),
+            aggregator: r.aggregator === true,
+            ...(r.crawl && { crawl: { status: r.crawl, checkedAt: lastSeen } }),
+          };
+        }),
+      });
     }
 
     if (path === "/topics" && method === "GET") return json(200, load());

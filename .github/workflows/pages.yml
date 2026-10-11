@@ -7,6 +7,7 @@ on:
       - "site/**"
       - "web/**"
       - "src/query/**"
+      - "src/registry/language.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/pages.yml"

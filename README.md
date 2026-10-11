@@ -117,6 +117,9 @@ MIT. See [LICENSE](LICENSE).
 
 ## The public demo
 
-The GitHub Pages demo is the real UI with the API replaced by an in-browser implementation (web/src/demo/): the same query parser, an equivalent search over a trimmed snapshot of crawled articles (web/public/demo-data.json, refreshed with 
-pm run demo:data), and topics kept in the visitor's own browser. Build it locally with 
-pm run build:demo.
+The GitHub Pages demo is the real UI with the API replaced by an in-browser implementation (`web/src/demo/`): the same query parser, an equivalent search over a trimmed snapshot of crawled articles (`web/public/demo-data.json`, refreshed with `npm run demo:data`), and topics kept in the visitor's own browser.
+
+The Registry tab is answered from a second snapshot, `web/public/demo-registry.json` (every known domain with country, aggregator flag and crawl status, plus the sources promoted from the registry), refreshed with `npm run demo:registry` against the local OpenSearch. The two files are independent: refreshing one does not touch the other. Commit the refreshed file and the Pages workflow redeploys.
+
+Build the demo locally with `npm run build:demo`.
+

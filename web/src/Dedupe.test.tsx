@@ -27,20 +27,22 @@ describe("remove duplicates", () => {
 
   it("is off at first, and turning it on asks for results without syndicated copies", async () => {
     const api = installFakeApi({ topics: [topic], resultsByTopic: { "1": [article] } });
+    // The editor also sends live query checks; only the results calls say anything about duplicates.
+    const lastResults = () => api.requests.filter((r) => /\/topics\/[^/]+\/results/.test(r.path)).at(-1)?.path ?? "";
     const user = userEvent.setup();
     render(<App now={() => new Date("2026-10-11T12:00:00Z")} />);
     await user.click(await screen.findByRole("button", { name: /Economy/ }));
     await screen.findByRole("heading", { name: "1 results" });
     const box = screen.getByRole("checkbox", { name: "Remove duplicates" });
     expect(box).not.toBeChecked();
-    expect(api.requests.at(-1)!.path).not.toContain("dedupe");
+    expect(lastResults()).not.toContain("dedupe");
 
     await user.click(box);
 
     expect(box).toBeChecked();
-    await vi.waitFor(() => expect(api.requests.at(-1)!.path).toContain("dedupe=true"), { timeout: 5000 });
+    await vi.waitFor(() => expect(lastResults()).toContain("dedupe=true"), { timeout: 5000 });
 
     await user.click(box);
-    await vi.waitFor(() => expect(api.requests.at(-1)!.path).not.toContain("dedupe"), { timeout: 5000 });
+    await vi.waitFor(() => expect(lastResults()).not.toContain("dedupe"), { timeout: 5000 });
   });
 });

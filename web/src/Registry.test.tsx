@@ -45,13 +45,16 @@ const domains = () =>
     .map((r) => within(r).getAllByRole("cell")[0]!.childNodes[0]!.textContent);
 
 describe("registry page", () => {
-  it("is not offered in the public demo, which has no registry behind it", () => {
+  it("is offered in the public demo too, which answers it from a registry snapshot", async () => {
     vi.stubEnv("MODE", "demo");
-    installFakeApi();
+    installFakeApi({ registry: [rec("argaam.com", 604, ["ara"])] });
+    const user = userEvent.setup();
     render(<App now={() => NOW} />);
 
-    expect(screen.getByRole("button", { name: "Sources" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Registry" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Registry" }));
+
+    expect(await screen.findByRole("table", { name: "Known domains" })).toBeInTheDocument();
+    expect(domains()).toEqual(["argaam.com"]);
   });
 
   it("says how many domains are known and lists them by volume with language, articles seen and last seen", async () => {

@@ -46,6 +46,7 @@ describe("demo banner", () => {
 
     const note = screen.getByRole("note", { name: "About this demo" });
     expect(note).toHaveTextContent("snapshot of real crawled headlines");
+    expect(note).toHaveTextContent("registry of news outlets");
     expect(note).toHaveTextContent("stay in this browser");
     expect(screen.getByRole("link", { name: "Source on GitHub" })).toHaveAttribute("href", "https://github.com/MohamedSayedK/tagging-system");
   });

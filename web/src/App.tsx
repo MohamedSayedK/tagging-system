@@ -212,11 +212,9 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
         <button type="button" aria-pressed={view === "sources"} onClick={() => setView("sources")}>
           Sources
         </button>
-        {import.meta.env.MODE !== "demo" && (
-          <button type="button" aria-pressed={view === "registry"} onClick={() => setView("registry")}>
-            Registry
-          </button>
-        )}
+        <button type="button" aria-pressed={view === "registry"} onClick={() => setView("registry")}>
+          Registry
+        </button>
         <div className="segmented theme-toggle" role="group" aria-label="Theme">
           {(["light", "dark", "auto"] as Theme[]).map((k) => (
             <button key={k} type="button" aria-pressed={theme === k} onClick={() => setTheme(k)}>
@@ -227,7 +225,8 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
       </header>
       {import.meta.env.MODE === "demo" && (
         <aside role="note" aria-label="About this demo" className="demo-note">
-          <strong>Live demo.</strong> A snapshot of real crawled headlines from Arabic and English outlets, searched right in your browser.
+          <strong>Live demo.</strong> A snapshot of real crawled headlines from Arabic and English outlets, and of the registry of news outlets
+          found so far, searched right in your browser.
           Topics you create stay in this browser. <a href="https://github.com/MohamedSayedK/tagging-system">Source on GitHub</a>
         </aside>
       )}
