@@ -32,7 +32,7 @@ sources:
   - name: Asharq Al-Awsat
     domain: aawsat.com
     sourcetype: ONLINENEWS_NEWSPAPER
-    country: GB
+    country: SA
     lang: ar
     feeds:
       - { url: "https://aawsat.com/feed", kind: rss }
@@ -40,7 +40,7 @@ sources:
   - name: Asharq Al-Awsat English
     domain: aawsat.com
     sourcetype: ONLINENEWS_NEWSPAPER
-    country: GB
+    country: SA
     lang: en
     feeds:
       - { url: "https://english.aawsat.com/feed", kind: rss }
