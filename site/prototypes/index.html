@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design prototypes · Tagging System</title>
+<style>
+  :root { --ink: #14202e; --muted: #4a5666; --line: #dfe3e8; --blue: #1d5fd6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 400 16px/1.5 system-ui, "Segoe UI", sans-serif; color: var(--ink); background: #f6f7f9; }
+  header { padding: 28px 32px 8px; }
+  h1 { margin: 0; font-size: 28px; letter-spacing: -.02em; }
+  p.lede { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
+  .tabs { display: flex; gap: 8px; padding: 16px 32px; position: sticky; top: 0; background: #f6f7f9; z-index: 3; flex-wrap: wrap; }
+  .tabs button { font: 700 15px system-ui; padding: 10px 16px; border: 1px solid #c3cad3; background: #fff; color: var(--ink); border-radius: 8px; cursor: pointer; text-align: left; }
+  .tabs button small { display: block; font-weight: 500; color: var(--muted); margin-top: 2px; }
+  .tabs button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tabs button[aria-pressed="true"] small { color: #cfd6df; }
+  .tabs a { margin-left: auto; align-self: center; color: var(--blue); font-weight: 600; }
+  iframe { display: block; width: calc(100% - 64px); margin: 0 32px 32px; height: calc(100vh - 150px); min-height: 700px; border: 1px solid #c3cad3; border-radius: 10px; background: #fff; }
+  .meta { margin: 0 32px 12px; color: var(--muted); font-size: 15px; max-width: 110ch; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Three directions, same screen</h1>
+  <p class="lede">The same topic, the same 14 days, the same ten articles, drawn three ways. Everything is clickable: hover or click the bars, switch Comfortable / Compact, expand filters. Demo content is synthetic.</p>
+</header>
+<div class="tabs" id="tabs">
+  <button data-src="rundown.html" aria-pressed="true">A · The Rundown<small>Assigned direction · clean ruled sheet</small></button>
+  <button data-src="cuttings.html" aria-pressed="false">B · Press Cuttings Bureau<small>Impeccable's pick · cuttings with slips</small></button>
+  <button data-src="concourse.html" aria-pressed="false">C · Split-Flap Concourse<small>Competitive alternate · dark departures board</small></button>
+  <a id="pop" href="rundown.html" target="_blank" rel="noopener">Open full screen ↗</a>
+</div>
+<p class="meta" id="meta"></p>
+<iframe id="frame" src="rundown.html" title="Prototype"></iframe>
+<script>
+  const meta = {
+    "rundown.html": "Best for scanning: fixed time / headline / source columns, calm white sheet, blue is the only loud colour. Risk: can read like a spreadsheet without the generous headline scale used here.",
+    "cuttings.html": "Best for reading: each result is a cutting with its slip, headlines in a news serif and a naskh Arabic face. Risk: cream paper and serif is the look most news tools already ship.",
+    "concourse.html": "Best for glancing at a live feed: dark board, amber flap times, rows collapse to one line. Risk: dark ground and condensed caps cost more over hours; Arabic needs a bigger size to stay comfortable.",
+  };
+  const frame = document.getElementById("frame"), pop = document.getElementById("pop"), m = document.getElementById("meta");
+  const set = (src) => { frame.src = src; pop.href = src; m.textContent = meta[src]; };
+  document.querySelectorAll("#tabs button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll("#tabs button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    set(b.dataset.src);
+  }));
+  set("rundown.html");
+</script>
+</body>
+</html>

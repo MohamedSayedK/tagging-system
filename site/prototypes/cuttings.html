@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototype B · Press Cuttings Bureau</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Libre+Franklin:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ground: #f1ecde; --slip: #fbf8ef; --ink: #1b1a17; --muted: #55504a; --faint: #756e63;
+  --rule: #d8d0bd; --rule-strong: #b9ad93; --stamp: #a8211a; --stamp-wash: #f6e2de; --green: #2f5d50;
+  --marker: #ffe36e; --weekend: #cdbf9f;
+  --serif: "Source Serif 4", Georgia, serif; --sans: "Libre Franklin", system-ui, sans-serif; --ar: "Amiri", "Noto Naskh Arabic", serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 400 17px/1.55 var(--serif); font-variant-numeric: lining-nums tabular-nums; }
+a { color: inherit; }
+.mast { background: var(--ink); color: #f6f0e1; padding: 14px 32px 0; }
+.mast .row1 { display: flex; align-items: center; gap: 24px; }
+.logo { font: 700 24px var(--serif); letter-spacing: .01em; }
+.logo small { font: 600 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; opacity: .7; margin-left: 12px; }
+.mast nav { display: flex; gap: 20px; font: 600 14px var(--sans); }
+.mast nav a { text-decoration: none; opacity: .75; padding: 6px 0; }
+.mast nav a[aria-current] { opacity: 1; border-bottom: 2px solid #f6f0e1; }
+.grow { flex: 1; }
+.stamp-btn { font: 700 15px var(--sans); letter-spacing: .02em; padding: 10px 18px; background: var(--stamp); color: #fff; border: 2px solid #fff3; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 0 #5a0f0b; }
+.stamp-btn:hover { background: #8f1a14; }
+.stamp-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 #5a0f0b; }
+.plain-btn { font: 600 14px var(--sans); padding: 8px 14px; border: 1px solid var(--rule-strong); background: var(--slip); color: var(--ink); border-radius: 4px; cursor: pointer; }
+.folders { display: flex; gap: 6px; margin-top: 14px; overflow-x: auto; }
+.folders a { font: 600 14px var(--sans); padding: 9px 18px; background: #3a372f; color: #e5dec9; border-radius: 6px 6px 0 0; text-decoration: none; white-space: nowrap; }
+.folders a[aria-current] { background: var(--ground); color: var(--ink); }
+.folders i { font-style: normal; font-weight: 500; opacity: .7; margin-left: 6px; }
+:focus-visible { outline: 3px solid #1b66e0; outline-offset: 2px; }
+
+.slip-bar { background: var(--slip); border-bottom: 1px solid var(--rule-strong); padding: 12px 32px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; font: 500 14px var(--sans); }
+.seg { display: inline-flex; gap: 4px; }
+.seg button { font: 700 13px var(--sans); padding: 6px 12px; border: 1px solid var(--rule-strong); border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.slip-bar input { font: 500 14px var(--sans); padding: 6px 8px; border: 1px solid var(--rule-strong); border-radius: 4px; background: #fff; }
+.chip { display: inline-flex; gap: 8px; align-items: center; padding: 4px 6px 4px 10px; background: var(--stamp-wash); color: var(--stamp); border: 1px solid #e3b7b1; border-radius: 4px; font-weight: 700; }
+.chip button { border: 0; background: transparent; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; }
+
+.wrap { max-width: 1320px; margin: 0 auto; padding: 32px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 40px; }
+.title { margin: 0 0 4px; font: 700 40px/1.1 var(--serif); letter-spacing: -.01em; }
+.query { font: 500 14px var(--sans); color: var(--muted); margin: 6px 0 24px; }
+.query code { font-family: ui-monospace, Consolas, monospace; background: #e8e1ce; padding: 3px 8px; border-radius: 3px; }
+.listhead { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 14px; padding-bottom: 10px; border-bottom: 3px double var(--ink); font: 700 13px var(--sans); letter-spacing: .12em; text-transform: uppercase; }
+.dayhead { margin: 28px 0 12px; font: 700 13px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 12px; }
+.dayhead::after { content: ""; flex: 1; border-top: 1px solid var(--rule-strong); }
+
+.cutting { background: var(--slip); border: 1px solid var(--rule); border-radius: 3px; margin-bottom: 14px; box-shadow: 0 1px 0 rgb(0 0 0 / 6%), 0 8px 18px -14px rgb(60 40 10 / 40%); }
+.slip { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; padding: 9px 20px; border-bottom: 1px dashed var(--rule-strong); font: 600 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.slip b { color: var(--ink); letter-spacing: .08em; }
+.slip .new { color: var(--stamp); border: 1.5px solid var(--stamp); padding: 1px 7px; border-radius: 3px; transform: rotate(-2deg); font-weight: 800; }
+.slip .no { margin-left: auto; font-weight: 500; }
+.body { padding: 16px 22px 18px; }
+.cutting h3 { margin: 0; font: 700 27px/1.25 var(--serif); letter-spacing: -.005em; text-wrap: balance; }
+.cutting h3 a { text-decoration: none; }
+.cutting h3 a:hover { text-decoration: underline; text-decoration-color: var(--stamp); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.cutting h3[dir="rtl"] { font-family: var(--ar); font-size: 32px; line-height: 1.55; }
+.excerpt { margin: 8px 0 12px; font-size: 18px; line-height: 1.65; color: #2a2823; max-width: 66ch; }
+.excerpt[dir="rtl"] { font-family: var(--ar); font-size: 23px; line-height: 1.9; }
+mark { background: linear-gradient(transparent 12%, var(--marker) 12%, var(--marker) 92%, transparent 92%); color: inherit; padding: 0 3px; }
+.read { font: 700 14px var(--sans); color: var(--stamp); text-decoration: none; border-bottom: 2px solid currentColor; padding-bottom: 1px; }
+.read:hover { color: #6f140f; }
+[data-density="compact"] .excerpt, [data-density="compact"] .read { display: none; }
+[data-density="compact"] .body { padding: 10px 22px 12px; }
+[data-density="compact"] .cutting h3 { font-size: 21px; }
+[data-density="compact"] .cutting h3[dir="rtl"] { font-size: 25px; }
+
+aside .box { background: var(--slip); border: 1px solid var(--rule); border-radius: 3px; padding: 18px 20px; margin-bottom: 20px; }
+aside h2 { margin: 0 0 4px; font: 700 13px var(--sans); letter-spacing: .12em; text-transform: uppercase; }
+aside .sub { margin: 0 0 8px; font: 400 14px var(--sans); color: var(--muted); }
+.big { display: flex; gap: 22px; margin: 6px 0 14px; }
+.big div b { display: block; font: 700 34px/1 var(--serif); }
+.big div span { font: 500 13px var(--sans); color: var(--muted); }
+.chart { position: relative; }
+.chart svg { width: 100%; display: block; overflow: visible; }
+.gridline { stroke: var(--rule); }
+.axis-label { fill: var(--muted); font: 500 11px var(--sans); }
+.x-label { fill: var(--muted); font: 700 11px var(--sans); }
+.x-label.date { font-weight: 500; fill: var(--faint); }
+.bar { fill: var(--ink); }
+.bar.weekend { fill: var(--weekend); }
+.bar.peak { fill: var(--stamp); }
+.bar.selected { fill: var(--green) !important; }
+.day { cursor: pointer; outline: none; } .day:hover .bar { opacity: .75; }
+.day:focus-visible .bar { stroke: #1b66e0; stroke-width: 3; }
+.avg-line { stroke: var(--stamp); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.avg-label { fill: var(--stamp); font: 700 11px var(--sans); paint-order: stroke; stroke: var(--slip); stroke-width: 4px; }
+.peak-label { fill: var(--stamp); font: 800 12px var(--sans); }
+.tip { margin-top: 6px; min-height: 22px; font: 500 14px var(--sans); color: var(--muted); }
+.tip.on { color: var(--ink); }
+.legend { font: 500 12px var(--sans); color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; }
+details { border-top: 1px solid var(--rule); padding: 10px 0; }
+summary { cursor: pointer; font: 700 14px var(--sans); list-style: none; display: flex; justify-content: space-between; }
+summary::after { content: "+"; } details[open] summary::after { content: "–"; }
+details label { display: flex; gap: 10px; align-items: center; padding: 6px 0; font: 500 15px var(--sans); cursor: pointer; }
+details label span { flex: 1; } details label i { font-style: normal; color: var(--muted); }
+details input { accent-color: var(--stamp); width: 17px; height: 17px; }
+@media (max-width: 1000px) { .wrap { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="mast">
+  <div class="row1">
+    <div class="logo">Tagging System <small>Press cuttings bureau</small></div>
+    <nav><a href="#" aria-current="page">Topics</a><a href="#">Sources</a></nav>
+    <div class="grow"></div>
+    <button class="stamp-btn">Save topic</button>
+  </div>
+  <div class="folders" role="tablist" aria-label="Topics">
+    <a href="#" aria-current="true">Economy &amp; budget<i>487</i></a>
+    <a href="#">Aviation security<i>214</i></a>
+    <a href="#">Energy &amp; oil prices<i>356</i></a>
+    <a href="#">Vision 2030 projects<i>129</i></a>
+    <a href="#">+ New topic</a>
+  </div>
+</header>
+
+<section class="slip-bar" aria-label="Date range and filters">
+  <div class="seg" role="group" aria-label="Date range">
+    <button aria-pressed="false">1D</button><button aria-pressed="false">7D</button><button aria-pressed="true">14D</button><button aria-pressed="false">30D</button><button aria-pressed="false">All time</button>
+  </div>
+  <label>From <input type="date" value="2026-09-27"></label>
+  <label>To <input type="date" value="2026-10-10"></label>
+  <span class="chip">Country: Saudi Arabia <button aria-label="Remove">×</button></span>
+  <span class="chip">Language: Arabic <button aria-label="Remove">×</button></span>
+  <button class="plain-btn" style="margin-left:auto">Clear all filters</button>
+</section>
+
+<div class="wrap" id="root" data-density="comfortable">
+  <main>
+    <h1 class="title">Economy &amp; budget</h1>
+    <p class="query">Query <code>(budget OR الميزانية) NEAR/8 (deficit OR عجز OR spending)</code> · excluding <code>sports</code> · <a href="#">edit</a></p>
+    <div class="listhead">
+      <span>487 cuttings, newest first</span>
+      <span class="seg" id="density"><button data-density="comfortable" aria-pressed="true">Comfortable</button><button data-density="compact" aria-pressed="false">Compact</button></span>
+    </div>
+    <div id="list"></div>
+    <p style="text-align:center"><button class="plain-btn">Load 25 more cuttings</button></p>
+  </main>
+
+  <aside>
+    <section class="box">
+      <h2>Cuttings per day</h2>
+      <p class="sub">Last 14 days. Click a bar to read that day only.</p>
+      <div class="big"><div><b>41</b><span>busiest · Tue 6 Oct</span></div><div><b>25</b><span>average a day</span></div></div>
+      <div class="chart" id="chart"></div>
+      <div class="legend"><span><i style="background:var(--ink)"></i>Weekday</span><span><i style="background:var(--weekend)"></i>Fri / Sat</span><span><i style="background:var(--stamp)"></i>Busiest</span></div>
+    </section>
+    <section class="box">
+      <h2>Narrow the pile</h2>
+      <div id="facets"></div>
+    </section>
+  </aside>
+</div>
+
+<script src="shared.js"></script>
+<script>
+  const P = PROTO;
+  P.renderChart(document.getElementById("chart"));
+  P.renderFacets(document.getElementById("facets"));
+  P.wireDensity(document.getElementById("root"), [...document.querySelectorAll("#density button")]);
+  let html = "", last = "", n = 4830;
+  for (const a of P.articles) {
+    if (a.day !== last) { last = a.day; html += `<div class="dayhead">${P.long(a.day)}</div>`; }
+    const dir = a.ar ? "rtl" : "ltr";
+    html += `<article class="cutting">
+      <div class="slip"><b>${a.source}</b><span>${a.country}</span><span>${P.short(a.day)} · ${a.time}</span><span>${a.lang}</span>${a.fresh ? '<span class="new">New</span>' : ""}<span class="no">Cutting № ${n--}</span></div>
+      <div class="body">
+        <h3 dir="${dir}"><a href="#">${a.title}</a></h3>
+        <p class="excerpt" dir="${dir}">${a.excerpt}</p>
+        <a class="read" href="#">Read the original at ${a.domain} →</a>
+      </div>
+    </article>`;
+  }
+  document.getElementById("list").innerHTML = html;
+</script>
+</body>
+</html>

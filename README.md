@@ -58,3 +58,11 @@ Precedence: `OR` < `AND`/`NOT` < `NEAR` < `field:`. Operators must be UPPERCASE.
 - Ingest respects robots.txt; set `USER_AGENT` env with a contact URL.
 - Adding sources: edit `sources.yaml` (`kind: rss` or `sitemap` incl. Google News sitemaps).
 
+## Links
+
+- Project page: https://mohamedsayedk.github.io/tagging-system/
+- Design prototypes (three directions, clickable): https://mohamedsayedk.github.io/tagging-system/prototypes/
+
+## License
+
+MIT. See [LICENSE](LICENSE).
