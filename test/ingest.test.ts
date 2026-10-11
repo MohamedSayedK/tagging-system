@@ -1,0 +1,115 @@
+// Needs a running OpenSearch. Serves feeds and articles from a local HTTP server.
+import { createServer, Server } from "node:http";
+import { AddressInfo } from "node:net";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+process.env.ARTICLES_INDEX = "articles_ingest_test";
+const { client, ensureIndices, INDEX } = await import("../src/search/index-def.js");
+const { ingestSource } = await import("../src/ingest/ingestSource.js");
+const { search } = await import("../src/search/search.js");
+
+let server: Server;
+let base = "";
+
+const article = (title: string, body: string) =>
+  `<html lang="en"><head><title>${title}</title></head><body><article><h1>${title}</h1><p>${body}</p><p>${body} Further paragraph so the extractor keeps it.</p></article></body></html>`;
+
+const rss = (items: { title: string; path: string }[]) =>
+  `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>${items
+    .map((i) => `<item><title>${i.title}</title><link>${base}${i.path}</link><pubDate>Sun, 11 Oct 2026 09:00:00 GMT</pubDate><description>summary of ${i.title}</description></item>`)
+    .join("")}</channel></rss>`;
+
+beforeAll(async () => {
+  server = createServer((req, res) => {
+    const send = (code: number, type: string, body = "") => {
+      res.writeHead(code, { "content-type": type });
+      res.end(body);
+    };
+    if (req.url === "/feed.xml") return send(200, "application/xml", rss([{ title: "Zebra crossing", path: "/a1" }, { title: "Giraffe census", path: "/a2" }]));
+    if (req.url === "/a1") return send(200, "text/html", article("Zebra crossing", "Zebras crossed the road near the old quarry today."));
+    if (req.url === "/a2") return send(200, "text/html", article("Giraffe census", "Giraffes were counted across the northern reserve this week."));
+    if (req.url === "/stale.xml") {
+      const items = [`<item><title>Fresh walrus</title><link>${base}/w1</link><pubDate>${new Date().toUTCString()}</pubDate></item>`, `<item><title>Ancient walrus</title><link>${base}/w2</link><pubDate>Mon, 03 Feb 2020 09:00:00 GMT</pubDate></item>`];
+      return send(200, "application/xml", `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>${items.join("")}</channel></rss>`);
+    }
+    if (req.url === "/w1" || req.url === "/w2") return send(200, "text/html", article("Walrus " + req.url, "Walruses were seen on the ice."));
+    if (req.url === "/many.xml") {
+      const day = (n: number) => `Sun, ${String(n).padStart(2, "0")} Sep 2026 09:00:00 GMT`;
+      const items = [1, 2, 3, 4, 5].map((n) => `<item><title>Story ${n} elephant</title><link>${base}/m${n}</link><pubDate>${day(n)}</pubDate></item>`);
+      return send(200, "application/xml", `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>${items.join("")}</channel></rss>`);
+    }
+    if (req.url?.startsWith("/m")) return send(200, "text/html", article(`Story ${req.url.slice(2)} elephant`, "Elephants gathered by the river this morning."));
+    if (req.url === "/broken.xml") return send(500, "text/plain", "nope");
+    return send(404, "text/plain", "not found");
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  await client.indices.delete({ index: INDEX }, { ignore: [404] });
+  await ensureIndices();
+});
+afterAll(async () => {
+  await new Promise((r) => server.close(r));
+  await client.indices.delete({ index: INDEX }, { ignore: [404] });
+});
+
+const source = (feeds: string[]) => ({
+  name: "Local",
+  domain: "local.test",
+  sourcetype: "BLOG",
+  country: "SA",
+  lang: "en",
+  feeds: feeds.map((p) => ({ url: `${base}${p}`, kind: "rss" as const })),
+});
+
+describe("ingestSource", () => {
+  it("skips items older than maxAgeDays: a monitoring stream is about now, not evergreen feed entries", async () => {
+    const outcome = await ingestSource({ ...source(["/stale.xml"]), maxAgeDays: 90 });
+
+    expect(outcome).toMatchObject({ ok: true, found: 2, indexed: 1 });
+    await client.indices.refresh({ index: INDEX });
+    const r = await search({ query: "walrus" });
+    expect(r.results.map((x: any) => x.title)).toEqual(["Fresh walrus"]);
+  });
+
+  it("reads only the newest `maxItems` of a large feed, and says how many it saw", async () => {
+    const outcome = await ingestSource({ ...source(["/many.xml"]), maxItems: 2 });
+
+    expect(outcome).toMatchObject({ ok: true, found: 5, indexed: 2 });
+    await client.indices.refresh({ index: INDEX });
+    const r = await search({ query: "elephant", sort: "oldest" });
+    expect(r.results.map((x: any) => x.title)).toEqual(["Story 4 elephant", "Story 5 elephant"]);
+  });
+
+  it("indexes new articles with the source's metadata, and reports what it did", async () => {
+    const outcome = await ingestSource(source(["/feed.xml"]));
+
+    expect(outcome).toMatchObject({ ok: true, found: 2, indexed: 2 });
+    await client.indices.refresh({ index: INDEX });
+    const r = await search({ query: "zebras", sourcetype: "blog", sourcecountry: "sa" });
+    expect(r.total).toBe(1);
+    expect(r.results[0]).toMatchObject({ title: "Zebra crossing", source: "Local", domain: "local.test", lang: "en" });
+  });
+
+  it("does not index the same articles again", async () => {
+    const outcome = await ingestSource(source(["/feed.xml"]));
+
+    expect(outcome).toMatchObject({ ok: true, found: 2, indexed: 0 });
+  });
+
+  it("fails when no feed of the source could be read, saying why", async () => {
+    const outcome = await ingestSource(source(["/broken.xml"]));
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.error).toMatch(/500/);
+    expect(outcome).toMatchObject({ found: 0, indexed: 0 });
+  });
+
+  it("still succeeds when only some feeds fail, and notes which", async () => {
+    const outcome = await ingestSource(source(["/broken.xml", "/feed.xml"]));
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.found).toBe(2);
+    expect(outcome.error).toMatch(/1 of 2 feeds failed/);
+  });
+});
+

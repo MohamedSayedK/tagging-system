@@ -1,0 +1,14 @@
+node_modules/
+web/dist/
+dist/
+*.log
+.env
+.env.*
+.DS_Store
+Thumbs.db
+
+# local tool state: generated mocks and build scratch, not source
+.impeccable/mocks/
+.impeccable/build/
+.impeccable/review/
+.impeccable/live/.impeccable/questions/

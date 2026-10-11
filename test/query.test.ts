@@ -1,0 +1,68 @@
+import { describe, expect, it } from "vitest";
+import { compileQuery, parse, QuerySyntaxError } from "../src/query/index.js";
+
+describe("parser", () => {
+  it("precedence: AND binds tighter than OR", () => {
+    expect(parse("a OR b AND c")).toEqual({
+      type: "or",
+      children: [
+        { type: "term", value: "a" },
+        { type: "and", children: [{ type: "term", value: "b" }, { type: "term", value: "c" }] },
+      ],
+    });
+  });
+
+  it("NEAR binds tighter than AND", () => {
+    const ast = parse('a AND b NEAR/5 c');
+    expect(ast).toMatchObject({ type: "and", children: [{ type: "term" }, { type: "near", distance: 5 }] });
+  });
+
+  it("`A NOT B` is A AND NOT B", () => {
+    expect(parse("a NOT b")).toEqual({
+      type: "and",
+      children: [{ type: "term", value: "a" }, { type: "not", child: { type: "term", value: "b" } }],
+    });
+  });
+
+  it("handles Arabic phrases and field filters", () => {
+    const ast = parse('("حساب المواطن" OR "برنامج") AND sourcetype:ONLINENEWS_NEWSPAPER AND sourcecountry:sa');
+    expect(ast.type).toBe("and");
+  });
+
+  it("field with group applies to subtree", () => {
+    expect(parse("title:(a OR b)")).toMatchObject({ type: "field", field: "title", child: { type: "or" } });
+  });
+
+  it("URLs are words, not fields", () => {
+    expect(parse("https://x.com/a")).toEqual({ type: "term", value: "https://x.com/a" });
+  });
+
+  it("rejects bad syntax", () => {
+    expect(() => parse("(a OR b")).toThrow(QuerySyntaxError);
+    expect(() => parse("a OR")).toThrow(QuerySyntaxError);
+    expect(() => parse('"abc')).toThrow(QuerySyntaxError);
+    expect(() => parse("a)")).toThrow(QuerySyntaxError);
+    expect(() => parse("")).toThrow(QuerySyntaxError);
+  });
+});
+
+describe("compile", () => {
+  it("NEAR over OR groups becomes intervals", () => {
+    const dsl = JSON.stringify(compileQuery('("a" OR "b") NEAR/8 ("c" OR "d")'));
+    expect(dsl).toContain('"intervals"');
+    expect(dsl).toContain('"max_gaps":8');
+    expect(dsl).toContain('"any_of"');
+  });
+
+  it("NOT goes to must_not", () => {
+    expect(compileQuery("a NOT b")).toMatchObject({ bool: { must: [{}], must_not: [{}] } });
+  });
+
+  it("keyword fields use term, lowercased", () => {
+    expect(compileQuery("sourcetype:BLOG")).toEqual({ term: { sourcetype: "blog" } });
+  });
+
+  it("AND inside NEAR is rejected", () => {
+    expect(() => compileQuery("(a AND b) NEAR/3 c")).toThrow(QuerySyntaxError);
+  });
+});

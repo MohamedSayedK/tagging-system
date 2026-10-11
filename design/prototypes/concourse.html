@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototype C · Split-Flap Concourse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Noto+Kufi+Arabic:wght@500;600;700&family=Noto+Naskh+Arabic:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --board: #0d0e11; --frame: #1b1d22; --cell: #17191e; --row: #14161a; --line: #2a2d34; --line-strong: #3b3f48;
+  --paper: #f3f2ec; --muted: #b3b6bf; --faint: #8a8e99; --amber: #ffb81c; --amber-dim: #6f5310; --red: #ff6b5a; --mark: #ffb81c;
+  --cond: "Barlow Condensed", "Arial Narrow", sans-serif; --body: "Barlow", system-ui, sans-serif;
+  --kufi: "Noto Kufi Arabic", "Segoe UI", sans-serif; --naskh: "Noto Naskh Arabic", serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--board); color: var(--paper); font: 400 17px/1.5 var(--body); font-variant-numeric: tabular-nums; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid #7cc4ff; outline-offset: 2px; }
+.top { display: flex; align-items: center; gap: 28px; padding: 0 28px; height: 64px; background: var(--frame); border-bottom: 2px solid #000; }
+.brand { font: 700 24px var(--cond); letter-spacing: .12em; text-transform: uppercase; }
+.brand b { color: var(--amber); }
+.top nav { display: flex; gap: 6px; height: 100%; }
+.top nav a { display: grid; place-items: center; padding: 0 16px; font: 600 17px var(--cond); letter-spacing: .1em; text-transform: uppercase; text-decoration: none; color: var(--muted); border-bottom: 4px solid transparent; }
+.top nav a[aria-current] { color: var(--paper); border-bottom-color: var(--amber); }
+.grow { flex: 1; }
+.go { font: 700 17px var(--cond); letter-spacing: .1em; text-transform: uppercase; padding: 11px 22px; background: var(--amber); color: #111; border: 0; border-radius: 4px; cursor: pointer; box-shadow: 0 0 0 1px #000, 0 6px 18px rgb(255 184 28 / 22%); }
+.go:hover { background: #ffc94d; }
+.ghost { font: 600 15px var(--cond); letter-spacing: .08em; text-transform: uppercase; padding: 9px 14px; background: transparent; color: var(--paper); border: 1px solid var(--line-strong); border-radius: 4px; cursor: pointer; }
+
+.controls { padding: 14px 28px; display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; background: #101216; border-bottom: 1px solid var(--line); }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 4px; overflow: hidden; }
+.seg button { font: 600 16px var(--cond); letter-spacing: .08em; padding: 7px 14px; background: transparent; color: var(--muted); border: 0; border-right: 1px solid var(--line); cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--amber); color: #111; }
+.controls label { display: flex; gap: 8px; align-items: center; font: 600 15px var(--cond); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.controls input[type=date] { font: 500 15px var(--body); background: var(--cell); color: var(--paper); border: 1px solid var(--line-strong); border-radius: 4px; padding: 6px 8px; color-scheme: dark; }
+.chip { display: inline-flex; gap: 8px; align-items: center; padding: 5px 6px 5px 12px; border: 1px solid var(--amber); color: var(--amber); border-radius: 4px; font: 700 15px var(--cond); letter-spacing: .05em; text-transform: uppercase; }
+.chip button { background: transparent; border: 0; color: inherit; font-size: 20px; line-height: 1; cursor: pointer; }
+
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); max-width: 1560px; margin: 0 auto; }
+aside { padding: 24px 22px; border-right: 1px solid var(--line); background: #101216; min-height: calc(100vh - 140px); }
+aside h2 { margin: 0 0 12px; font: 700 15px var(--cond); letter-spacing: .16em; text-transform: uppercase; color: var(--faint); }
+.topics { list-style: none; margin: 0 0 28px; padding: 0; display: grid; gap: 4px; }
+.topics a { display: flex; justify-content: space-between; padding: 11px 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--cell); text-decoration: none; font: 600 18px var(--cond); letter-spacing: .04em; }
+.topics a[aria-current] { border-color: var(--amber); box-shadow: inset 4px 0 0 var(--amber); }
+.topics i { font-style: normal; color: var(--amber); }
+details { border-top: 1px solid var(--line); padding: 10px 0; }
+summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; font: 700 17px var(--cond); letter-spacing: .1em; text-transform: uppercase; }
+summary::after { content: "+"; color: var(--amber); } details[open] summary::after { content: "–"; }
+details label { display: flex; gap: 10px; padding: 7px 0; align-items: center; font: 500 16px var(--body); cursor: pointer; }
+details label span { flex: 1; } details label i { font-style: normal; color: var(--muted); }
+details input { width: 18px; height: 18px; accent-color: var(--amber); }
+
+main { padding: 26px 32px 80px; }
+h1 { margin: 0; font: 700 44px/1.05 var(--cond); letter-spacing: .03em; text-transform: uppercase; }
+.query { font: 500 14px ui-monospace, Consolas, monospace; color: var(--muted); margin: 8px 0 22px; }
+.stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 12px; margin-bottom: 22px; }
+.stat { background: var(--cell); border: 1px solid var(--line); border-radius: 4px; padding: 10px 18px 12px; }
+.stat b { display: block; font: 700 40px/1.05 var(--cond); color: var(--amber); letter-spacing: .02em; }
+.stat span { font: 500 14px var(--body); color: var(--muted); }
+.panel { background: var(--cell); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px 12px; }
+.panel h3 { margin: 0 0 2px; font: 700 20px var(--cond); letter-spacing: .1em; text-transform: uppercase; }
+.panel .sub { margin: 0 0 8px; color: var(--muted); font-size: 15px; }
+.chart { position: relative; } .chart svg { width: 100%; display: block; overflow: visible; }
+.gridline { stroke: var(--line); } .axis-label { fill: var(--muted); font: 600 13px var(--cond); letter-spacing: .05em; }
+.x-label { fill: var(--paper); font: 700 14px var(--cond); } .x-label.date { fill: var(--faint); font-weight: 500; }
+.bar { fill: #c78e14; } .bar.weekend { fill: #4a4d57; } .bar.peak { fill: var(--amber); } .bar.selected { fill: #fff !important; }
+.day { cursor: pointer; outline: none; } .day:hover .bar { fill: #ffd466; }
+.day:focus-visible .bar { stroke: #7cc4ff; stroke-width: 3; }
+.avg-line { stroke: #fff; stroke-width: 1.5; stroke-dasharray: 5 5; opacity: .85; }
+.avg-label { fill: #fff; font: 700 13px var(--cond); letter-spacing: .06em; text-transform: uppercase; paint-order: stroke; stroke: var(--cell); stroke-width: 4px; }
+.peak-label { fill: var(--amber); font: 700 16px var(--cond); }
+.tip { position: absolute; top: -8px; right: 0; background: var(--amber); color: #111; padding: 5px 12px; border-radius: 3px; font: 700 15px var(--cond); letter-spacing: .05em; opacity: 0; } .tip.on { opacity: 1; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font: 500 14px var(--body); padding: 0 0 8px 36px; }
+.legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
+
+.boardhead { display: flex; justify-content: space-between; align-items: center; margin: 30px 0 10px; }
+.boardhead h2 { margin: 0; font: 700 26px var(--cond); letter-spacing: .1em; text-transform: uppercase; }
+.board { border: 1px solid var(--line-strong); border-radius: 4px; background: var(--row); }
+.cols, .r { display: grid; grid-template-columns: 112px minmax(0, 1fr) 190px 190px 52px; gap: 0 20px; padding: 0 18px; align-items: center; }
+.cols { height: 40px; background: var(--frame); border-bottom: 2px solid #000; font: 700 15px var(--cond); letter-spacing: .16em; text-transform: uppercase; color: var(--faint); }
+.dayrow { padding: 8px 18px; background: #0a0b0d; font: 700 17px var(--cond); letter-spacing: .14em; text-transform: uppercase; color: var(--amber); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.r { padding-top: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); align-items: start; cursor: pointer; }
+.r:hover { background: #1a1d23; }
+.r.fresh { box-shadow: inset 4px 0 0 var(--amber); }
+.flap { display: inline-flex; gap: 3px; }
+.flap span { display: inline-grid; place-items: center; width: 26px; height: 38px; background: #000; border-radius: 3px; font: 700 26px var(--cond); color: var(--paper); position: relative; }
+.flap span::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #2c2f36; }
+.flap .sep { background: transparent; width: 8px; color: var(--amber); } .flap .sep::after { display: none; }
+.h { margin: 0; font: 600 22px/1.35 var(--body); letter-spacing: 0; text-wrap: balance; }
+.h[dir="rtl"] { font-family: var(--kufi); font-size: 21px; line-height: 1.7; font-weight: 600; }
+.h a { text-decoration: none; } .h a:hover { color: var(--amber); text-decoration: underline; text-underline-offset: 4px; }
+.ex { display: none; margin: 8px 0 4px; color: #d9dbe0; font-size: 17px; line-height: 1.65; max-width: 68ch; }
+.ex[dir="rtl"] { font-family: var(--naskh); font-size: 20px; line-height: 1.9; }
+.r.open .ex { display: block; }
+mark { background: transparent; color: var(--amber); border-bottom: 2px solid var(--amber); }
+.cell b { display: block; font: 600 20px var(--cond); letter-spacing: .05em; text-transform: uppercase; }
+.cell span { color: var(--muted); font-size: 15px; }
+.go-link { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 4px; text-decoration: none; color: var(--amber); font-size: 20px; font-weight: 700; }
+.go-link:hover { background: var(--amber); color: #111; }
+[data-density="compact"] .r { padding-top: 8px; padding-bottom: 8px; }
+[data-density="compact"] .h { font-size: 19px; } [data-density="compact"] .h[dir="rtl"] { font-size: 18px; }
+[data-density="compact"] .flap span { width: 22px; height: 30px; font-size: 21px; }
+.note { margin-top: 18px; padding: 12px 16px; border: 1px dashed var(--line-strong); color: var(--muted); font-size: 15px; border-radius: 4px; }
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .cols { display: none; } .r { grid-template-columns: 124px 1fr 44px; } .cell { grid-column: 2; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Tagging <b>System</b></div>
+  <nav><a href="#" aria-current="page">Topics</a><a href="#">Sources</a></nav>
+  <div class="grow"></div>
+  <button class="go">Save topic</button>
+</header>
+<section class="controls" aria-label="Date range and filters">
+  <div class="seg" role="group" aria-label="Date range">
+    <button aria-pressed="false">1D</button><button aria-pressed="false">7D</button><button aria-pressed="true">14D</button><button aria-pressed="false">30D</button><button aria-pressed="false">All</button>
+  </div>
+  <label>From <input type="date" value="2026-09-27"></label>
+  <label>To <input type="date" value="2026-10-10"></label>
+  <span class="chip">Saudi Arabia <button aria-label="Remove country">×</button></span>
+  <span class="chip">Arabic <button aria-label="Remove language">×</button></span>
+  <button class="ghost" style="margin-left:auto">Clear all</button>
+</section>
+
+<div class="layout">
+  <aside>
+    <h2>Topics</h2>
+    <ul class="topics">
+      <li><a href="#" aria-current="true">Economy &amp; budget <i>487</i></a></li>
+      <li><a href="#">Aviation security <i>214</i></a></li>
+      <li><a href="#">Energy &amp; oil prices <i>356</i></a></li>
+      <li><a href="#">Vision 2030 projects <i>129</i></a></li>
+    </ul>
+    <button class="ghost" style="width:100%; margin-bottom:26px">+ New topic</button>
+    <h2>Filters</h2>
+    <div id="facets"></div>
+  </aside>
+
+  <main id="root" data-density="comfortable">
+    <h1>Economy &amp; budget</h1>
+    <div class="query">(budget OR الميزانية) NEAR/8 (deficit OR عجز OR spending) · exclude: sports</div>
+    <div class="stats">
+      <div class="stat"><b>487</b><span>articles · 14 days</span></div>
+      <div class="stat"><b>41</b><span>busiest · Tue 6 Oct</span></div>
+      <div class="stat"><b>25</b><span>average per day</span></div>
+    </div>
+
+    <section class="panel">
+      <h3>Articles per day</h3>
+      <p class="sub">Select a day to read only that day. Dim bars are Fri / Sat.</p>
+      <div class="legend"><span><i style="background:#c78e14"></i>Weekday</span><span><i style="background:#4a4d57"></i>Fri / Sat</span><span><i style="background:var(--amber)"></i>Busiest</span><span><i style="background:#fff"></i>Average</span></div>
+      <div class="chart" id="chart"></div>
+    </section>
+
+    <div class="boardhead">
+      <h2>Departures <span style="color:var(--muted); font-size:18px; letter-spacing:.06em">487 articles</span></h2>
+      <div class="seg" id="density" role="group" aria-label="Density"><button data-density="comfortable" aria-pressed="true">Comfortable</button><button data-density="compact" aria-pressed="false">Compact</button></div>
+    </div>
+    <div class="board">
+      <div class="cols"><span>Time</span><span>Headline</span><span>Source</span><span>Country</span><span></span></div>
+      <div id="list"></div>
+    </div>
+    <p class="note">Rows stay one line until you select them; the excerpt opens in place so the board never reflows around you.</p>
+  </main>
+</div>
+
+<script src="shared.js"></script>
+<script>
+  const P = PROTO;
+  P.renderChart(document.getElementById("chart"));
+  P.renderFacets(document.getElementById("facets"));
+  P.wireDensity(document.getElementById("root"), [...document.querySelectorAll("#density button")]);
+  const flap = (t) => `<span class="flap">${[...t].map((c) => `<span class="${c === ":" ? "sep" : ""}">${c}</span>`).join("")}</span>`;
+  let html = "", last = "", i = 0;
+  for (const a of P.articles) {
+    if (a.day !== last) { last = a.day; html += `<div class="dayrow">${P.long(a.day)} · ${P.countOn(a.day) * 8} articles</div>`; }
+    const dir = a.ar ? "rtl" : "ltr";
+    html += `<article class="r ${a.fresh ? "fresh" : ""} ${i === 1 ? "open" : ""}" onclick="this.classList.toggle('open')">
+      <div>${flap(a.time)}</div>
+      <div><h3 class="h" dir="${dir}"><a href="#" onclick="event.stopPropagation()">${a.title}</a></h3><p class="ex" dir="${dir}">${a.excerpt}</p></div>
+      <div class="cell"><b>${a.source}</b><span>${a.lang}</span></div>
+      <div class="cell"><b>${a.country}</b><span>${a.type}</span></div>
+      <a class="go-link" href="#" aria-label="Open article" onclick="event.stopPropagation()">↗</a>
+    </article>`;
+    i++;
+  }
+  document.getElementById("list").innerHTML = html;
+</script>
+</body>
+</html>

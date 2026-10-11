@@ -1,0 +1,302 @@
+# Outlets to crawl. `interval` is how often the worker re-reads a source (default 15m);
+# failing sources back off automatically. Edits are picked up by a running worker (no restart).
+#
+# sourcetype values are free-form but should match what you use in queries
+# (sourcetype:ONLINENEWS_NEWSPAPER, ...). Every feed below was fetched and parsed on 2026-10-11.
+sources:
+  # ---- Saudi Arabia ----
+  - name: Arab News
+    domain: arabnews.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: SA
+    lang: en
+    feeds:
+      - { url: "https://www.arabnews.com/rss.xml", kind: rss }
+
+  - name: Saudi Gazette
+    domain: saudigazette.com.sa
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: SA
+    lang: en
+    feeds:
+      - { url: "https://saudigazette.com.sa/rssFeed/74", kind: rss }
+
+  - name: Okaz
+    domain: okaz.com.sa
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: SA
+    lang: ar
+    feeds:
+      - { url: "https://www.okaz.com.sa/rssFeed/0", kind: rss }
+
+  - name: Asharq Al-Awsat
+    domain: aawsat.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: GB
+    lang: ar
+    feeds:
+      - { url: "https://aawsat.com/feed", kind: rss }
+
+  - name: Asharq Al-Awsat English
+    domain: aawsat.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: GB
+    lang: en
+    feeds:
+      - { url: "https://english.aawsat.com/feed", kind: rss }
+
+  # ---- Egypt ----
+  - name: Al Masry Al Youm
+    domain: almasryalyoum.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: EG
+    lang: ar
+    feeds:
+      - { url: "https://www.almasryalyoum.com/rss/rssfeeds", kind: rss }
+
+  # Youm7's feed carries no publication dates: articles are stamped with the time they were first seen.
+  - name: Youm7
+    domain: youm7.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: EG
+    lang: ar
+    feeds:
+      - { url: "https://www.youm7.com/rss/SectionRss?SectionID=65", kind: rss }
+
+  - name: Egypt Independent
+    domain: egyptindependent.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: EG
+    lang: en
+    feeds:
+      - { url: "https://egyptindependent.com/feed/", kind: rss }
+
+  # ---- Regional / international broadcasters' news sites ----
+  - name: Sky News Arabia
+    domain: skynewsarabia.com
+    sourcetype: ONLINENEWS_OTHER
+    country: AE
+    lang: ar
+    feeds:
+      - { url: "https://www.skynewsarabia.com/web/rss", kind: rss }
+
+  - name: CNN Arabic
+    domain: cnn.com
+    sourcetype: ONLINENEWS_OTHER
+    country: US
+    lang: ar
+    feeds:
+      - { url: "https://arabic.cnn.com/rss", kind: rss }
+
+  - name: CNN World
+    domain: cnn.com
+    sourcetype: ONLINENEWS_OTHER
+    country: US
+    lang: en
+    interval: 30m
+    feeds:
+      - { url: "http://rss.cnn.com/rss/edition_world.rss", kind: rss }
+
+  - name: BBC Arabic
+    domain: bbc.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: GB
+    lang: ar
+    feeds:
+      - { url: "https://feeds.bbci.co.uk/arabic/rss.xml", kind: rss }
+
+  - name: BBC News World
+    domain: bbc.co.uk
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: GB
+    lang: en
+    interval: 30m
+    feeds:
+      - { url: "https://feeds.bbci.co.uk/news/world/rss.xml", kind: rss }
+
+  - name: France 24 Arabic
+    domain: france24.com
+    sourcetype: ONLINENEWS_OTHER
+    country: FR
+    lang: ar
+    feeds:
+      - { url: "https://www.france24.com/ar/rss", kind: rss }
+
+  - name: France 24 Middle East
+    domain: france24.com
+    sourcetype: ONLINENEWS_OTHER
+    country: FR
+    lang: en
+    interval: 30m
+    feeds:
+      - { url: "https://www.france24.com/en/middle-east/rss", kind: rss }
+
+  - name: DW Arabic
+    domain: dw.com
+    sourcetype: ONLINENEWS_OTHER
+    country: DE
+    lang: ar
+    interval: 30m
+    feeds:
+      - { url: "https://rss.dw.com/xml/rss-ar-all", kind: rss }
+
+  # Russian state media; included for monitoring coverage, not endorsement.
+  - name: RT Arabic
+    domain: rt.com
+    sourcetype: ONLINENEWS_OTHER
+    country: RU
+    lang: ar
+    interval: 30m
+    feeds:
+      - { url: "https://arabic.rt.com/rss/", kind: rss }
+
+  # ---- International press ----
+  - name: The Guardian World
+    domain: theguardian.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: GB
+    lang: en
+    interval: 30m
+    feeds:
+      - { url: "https://www.theguardian.com/world/rss", kind: rss }
+
+  - name: New York Times World
+    domain: nytimes.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: US
+    lang: en
+    interval: 30m
+    feeds:
+      - { url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", kind: rss }
+
+  - name: Jerusalem Post Middle East
+    domain: jpost.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: IL
+    lang: en
+    interval: 30m
+    feeds:
+      - { url: "https://www.jpost.com/rss/rssfeedsmiddleeastnews.aspx", kind: rss }
+
+  - name: Al-Monitor
+    domain: al-monitor.com
+    sourcetype: ONLINENEWS_MAGAZINE
+    country: US
+    lang: en
+    interval: 1h
+    feeds:
+      - { url: "https://www.al-monitor.com/rss", kind: rss }
+
+  # ---- Added 2026-10-11 from outlets whose RSS was unreachable/empty, via their news sitemaps ----
+  # (sitemaps list hundreds or thousands of URLs; only the newest `maxItems` are read per run)
+  - name: Sabq
+    domain: sabq.org
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: SA
+    lang: ar
+    feeds:
+      - { url: "https://sabq.org/sitemap-news.xml", kind: sitemap }
+
+  - name: Al Madina
+    domain: al-madina.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: SA
+    lang: ar
+    feeds:
+      - { url: "https://www.al-madina.com/sitemaps/newsSitemap.xml", kind: sitemap }
+
+  - name: Al Eqtisadiah
+    domain: aleqt.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: SA
+    lang: ar
+    feeds:
+      - { url: "https://www.aleqt.com/sitemaps/newsSitemap.xml", kind: sitemap }
+
+  - name: Al Khaleej
+    domain: alkhaleej.ae
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: AE
+    lang: ar
+    feeds:
+      - { url: "https://www.alkhaleej.ae/sitemaps/news_sitemap.xml", kind: sitemap }
+
+  - name: Emarat Al Youm
+    domain: emaratalyoum.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: AE
+    lang: ar
+    feeds:
+      - { url: "https://www.emaratalyoum.com/news-sitemaps-1.368006/local-section-1.1075475?ot=ot.AjaxPageLayout", kind: sitemap }
+      - { url: "https://www.emaratalyoum.com/news-sitemaps-1.368006/business-1.1075476?ot=ot.AjaxPageLayout", kind: sitemap }
+      - { url: "https://www.emaratalyoum.com/news-sitemaps-1.368006/politics-1.1075478?ot=ot.AjaxPageLayout", kind: sitemap }
+      - { url: "https://www.emaratalyoum.com/news-sitemaps-1.368006/life-1.1075479?ot=ot.AjaxPageLayout", kind: sitemap }
+      - { url: "https://www.emaratalyoum.com/news-sitemaps-1.368006/sports-1.1075480?ot=ot.AjaxPageLayout", kind: sitemap }
+      - { url: "https://www.emaratalyoum.com/news-sitemaps-1.368006/everything-else-1.1075482?ot=ot.AjaxPageLayout", kind: sitemap }
+
+  - name: Gulf News
+    domain: gulfnews.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: AE
+    lang: en
+    feeds:
+      - { url: "https://gulfnews.com/news_sitemap.xml", kind: sitemap }
+
+  - name: The National
+    domain: thenationalnews.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: AE
+    lang: en
+    feeds:
+      - { url: "https://www.thenationalnews.com/sitemap-news.xml", kind: sitemap }
+
+  - name: Khaleej Times
+    domain: khaleejtimes.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: AE
+    lang: en
+    feeds:
+      - { url: "https://www.khaleejtimes.com/news_sitemap.xml", kind: sitemap }
+
+  - name: Zawya English
+    domain: zawya.com
+    sourcetype: ONLINENEWS_PRESSRELEASES
+    country: AE
+    lang: en
+    interval: 30m
+    feeds:
+      - { url: "https://www.zawya.com/sitemaps/en/sitemap-news.xml", kind: sitemap }
+
+  - name: Zawya Arabic
+    domain: zawya.com
+    sourcetype: ONLINENEWS_PRESSRELEASES
+    country: AE
+    lang: ar
+    interval: 30m
+    feeds:
+      - { url: "https://www.zawya.com/sitemaps/ar/sitemap-news.xml", kind: sitemap }
+
+  - name: Times of Israel
+    domain: timesofisrael.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: IL
+    lang: en
+    interval: 30m
+    feeds:
+      - { url: "https://www.timesofisrael.com/news-sitemap.xml", kind: sitemap }
+
+  - name: Dostor
+    domain: dostor.org
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: EG
+    lang: ar
+    feeds:
+      - { url: "https://www.dostor.org/news-sitemap.xml", kind: sitemap }
+
+  - name: Elwatan News
+    domain: elwatannews.com
+    sourcetype: ONLINENEWS_NEWSPAPER
+    country: EG
+    lang: ar
+    feeds:
+      - { url: "https://www.elwatannews.com/news-sitemap.xml", kind: sitemap }
