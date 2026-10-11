@@ -38,6 +38,19 @@ describe("demo engine: same answers as the OpenSearch engine", () => {
     expect(ids("citizen", { exclude: "weather" })).toEqual(["2"]);
     expect(ids("citizen OR حساب", { from: "2026-10-10T00:00:00Z" })).toEqual(["2", "3"]);
   });
+  it("`term NOT (phrase)` inside NEAR ignores occurrences inside that phrase", () => {
+    expect(ids('(citizen NOT "citizen account") NEAR/10 account')).toEqual(["3"]);
+  });
+  it("a bare NOT or an AND inside NEAR is still rejected", () => {
+    expect(() => index.search({ query: "(NOT citizen) NEAR/3 account" })).toThrow(/not allowed inside NEAR/i);
+    expect(() => index.search({ query: "(citizen AND account) NEAR/3 payment" })).toThrow(/not allowed inside NEAR/i);
+  });
+  it("sourceCountry accepts an English country name", () => {
+    expect(ids('citizen AND sourceCountry:"United States"')).toEqual(["2", "3"]);
+  });
+  it("an unknown country name fails loudly", () => {
+    expect(() => index.search({ query: 'sourceCountry:"Atlantis"' })).toThrow(/Unknown country/);
+  });
   it("rejects bad syntax with the parser's error", () => {
     expect(() => index.search({ query: "(a OR b" })).toThrow(/parenthesis/i);
   });

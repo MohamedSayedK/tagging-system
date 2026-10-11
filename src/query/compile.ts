@@ -6,7 +6,7 @@ type Dsl = Record<string, unknown>;
 const TEXT_FIELDS = ["title", "body"];
 // Stored country codes are ISO 3166 alpha-2; queries may use English country names ("Saudi Arabia").
 let countryCodes: Map<string, string> | undefined;
-function countryCode(value: string): string {
+export function countryCode(value: string): string {
   const v = value.trim();
   if (/^[A-Za-z]{2}$/.test(v)) return v;
   if (!countryCodes) {

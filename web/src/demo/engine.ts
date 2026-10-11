@@ -1,6 +1,6 @@
 // In-browser search over a bundled snapshot, answering like the OpenSearch-backed API so the public demo
 // is the real UI on real (crawled) data with no server. Parsing is the project's own pure parser.
-import { Node, parse, QuerySyntaxError } from "../../../src/query/index.js";
+import { countryCode, Node, parse, QuerySyntaxError } from "../../../src/query/index.js";
 
 export interface DemoArticle {
   id: string;
@@ -91,6 +91,12 @@ function spansOf(node: Node, field: string[]): Span[] {
       return leafSpans(field, node.value, false);
     case "or":
       return node.children.flatMap((c) => spansOf(c, field));
+    case "and": {
+      // `A NOT B` inside NEAR: occurrences of A that are not inside an occurrence of B.
+      const positive = node.children.find((c) => c.type !== "not")!;
+      const excluded = node.children.flatMap((c) => (c.type === "not" ? spansOf(c.child, field) : []));
+      return spansOf(positive, field).filter(([s, e]) => !excluded.some(([xs, xe]) => xs <= s && e <= xe));
+    }
     case "near": {
       let acc = spansOf(node.children[0]!, field);
       for (const next of node.children.slice(1)) {
@@ -122,6 +128,12 @@ function assertSupported(node: Node, insideNear = false, keyword = false): void 
       return assertSupported(node.child, insideNear, KEYWORD_FIELDS.has(node.field));
     case "and":
     case "not":
+      if (insideNear && node.type === "and") {
+        const negatives = node.children.filter((c) => c.type === "not");
+        if (node.children.length - negatives.length === 1 && negatives.length > 0) {
+          return node.children.forEach((c) => assertSupported(c.type === "not" ? c.child : c, true, keyword));
+        }
+      }
       if (insideNear) throw new QuerySyntaxError(`${node.type.toUpperCase()} is not allowed inside NEAR; use terms, phrases, OR groups`);
       return node.type === "and" ? node.children.forEach((c) => assertSupported(c, insideNear, keyword)) : assertSupported(node.child, insideNear, keyword);
     case "or":
@@ -140,7 +152,7 @@ function matches(node: Node, d: Prepared, ctx: Ctx = { fields: ["title", "body"]
     case "phrase": {
       if (ctx.keyword) {
         const have = String((d.art as unknown as Record<string, unknown>)[ctx.keyword] ?? "").toLowerCase();
-        const want = node.value.toLowerCase();
+        const want = (ctx.keyword === "sourcecountry" && !hasWildcard(node.value) ? countryCode(node.value) : node.value).toLowerCase();
         return hasWildcard(want) ? new RegExp(`^${want.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i").test(have) : have === want;
       }
       return ctx.fields.some((f) => leafSpans(d[f], node.value, node.type === "term").length > 0);

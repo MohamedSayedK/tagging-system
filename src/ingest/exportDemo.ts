@@ -27,13 +27,14 @@ const res = await client.search({
     query: { match_all: {} },
   } as never,
 });
-const articles = (res.body as any).hits.hits
+const flat = (s: string) => s.replace(/\s+/g, " ").trim();
+const fullArticles = (res.body as any).hits.hits
   .filter((h: any) => h._source.title && h._source.url)
   .map((h: any) => ({
     id: h._id as string,
     url: h._source.url as string,
     title: String(h._source.title).replace(/\s+/g, " ").trim(),
-    body: trimBody(String(h._source.body ?? "")),
+    body: flat(String(h._source.body ?? "")),
     source: h._source.source as string,
     domain: h._source.domain as string,
     sourcetype: h._source.sourcetype as string,
@@ -61,7 +62,16 @@ const sources = loadSources().map((s) => {
   };
 });
 
-const topics = [
+// `keepFullText`: articles that match this topic keep their whole body in the snapshot, because the match can sit
+// far past the 320-character excerpt. Every other article stays trimmed.
+const topics: { name: string; color: string; query: string; keepFullText?: boolean }[] = [
+  {
+    name: "Saudi Minister of Finance",
+    color: "#3e63dd",
+    keepFullText: true,
+    query:
+      '(((((Ministry OR Minister OR وزارة OR وزاره OR وزير OR ووزارة OR ووزاره OR ووزير OR لوزارة OR لوزاره OR لوزير OR بوزارة OR بوزاره OR بوزير) NEAR/2 (Finance OR المالية OR الماليه)) OR #وزيرالمالية OR #وزارةالمالية) NEAR/3 (KSA OR Saudi* OR السعودي* OR سعودي* OR (المملكة* NOT ("المملكة الأردنية" OR "المملكة الهاشمية" OR "المملكة المتحدة" OR "المملكة المغربية" OR "المملكة العربية السورية" OR "المملكة السورية" OR "AlMamlaka TV" OR "المملكة اليمنية" OR "المملكة الليبية")))) OR "Saudi Arabia\'s finance minister" OR "التواصل والمعرفة المالية" OR "Mohammed Al Jadaan" OR "Mohammed Aljadaan" OR authorContains:Aljadaan OR authorContains:Jadaan OR authorContains:الجدعان OR "محمد الجدعان" OR ((محمد OR Mohammed OR Mohamed) NEAR/3 (Aljadaan OR "Al-Jadaan" OR الجدعان OR Jadaan)) OR "رئيس مجلس إدارة هيئة الزكاة والضريبة والجمارك") OR ((((Ministry OR وزارة OR وزاره OR ووزارة OR ووزاره OR لوزارة OR لوزاره OR بوزارة OR بوزاره) NEAR/2 (Finance OR المالية OR الماليه))) AND sourceCountry:"Saudi Arabia") OR (منصة NEAR/1 (اعتماد OR إعتماد OR إحكام OR احكام))',
+  },
   { name: "Economy and budgets", color: "#3e63dd", query: "budget OR الميزانية OR economy OR economic OR الاقتصاد OR الاقتصادية OR اقتصادي OR inflation OR التضخم" },
   { name: "Aviation and airport security", color: "#e5484d", query: "(airport OR مطار OR aviation OR الطيران) NEAR/10 (attack OR هجوم OR security OR أمن OR استهداف)" },
   { name: "Energy and oil", color: "#12a594", query: "oil OR crude OR OPEC OR نفط OR النفط OR أوبك" },
@@ -69,8 +79,19 @@ const topics = [
   { name: "Technology and AI", color: "#f76808", query: '"artificial intelligence" OR AI OR "الذكاء الاصطناعي" OR technology OR تقنية OR التكنولوجيا' },
 ];
 
+const fullIndex = new DemoIndex(fullArticles);
+const keepFull = new Set<string>();
+for (const t of topics.filter((t) => t.keepFullText)) {
+  for (const r of fullIndex.search({ query: t.query, size: 100 }).results) keepFull.add(r.id);
+}
+const articles = fullArticles.map((a: any) => (keepFull.has(a.id) ? a : { ...a, body: trimBody(a.body) }));
+console.log(`${keepFull.size} articles keep their full text (topic hits)`);
+
 mkdirSync(dirname(OUT), { recursive: true });
-writeFileSync(OUT, JSON.stringify({ generatedAt: new Date().toISOString(), articles, sources, topics }));
+writeFileSync(
+  OUT,
+  JSON.stringify({ generatedAt: new Date().toISOString(), articles, sources, topics: topics.map(({ keepFullText, ...t }) => t) }),
+);
 const index = new DemoIndex(articles);
 console.log(`${articles.length} articles, ${sources.length} sources -> ${OUT}`);
 for (const t of topics) console.log(`  ${index.search({ query: t.query, size: 1 }).total} articles: ${t.name}`);
