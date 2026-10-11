@@ -11,4 +11,5 @@ Thumbs.db
 .impeccable/mocks/
 .impeccable/build/
 .impeccable/review/
-.impeccable/live/.impeccable/questions/
+.impeccable/live/
+.impeccable/questions/
