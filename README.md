@@ -34,10 +34,11 @@ Feeds can be RSS/Atom (`kind: rss`) or Google-News-style sitemaps (`kind: sitema
 | `a OR b` | either |
 | `NOT a`, `a NOT b` | exclude (`a NOT b` = `a AND NOT b`) |
 | `"exact phrase"` | phrase |
-| `a NEAR/8 b` | within 8 words, any order; operands: terms, phrases, OR groups, nested NEAR |
+| `a NEAR/8 b` | within 8 words, any order; operands: terms, phrases, OR groups, nested NEAR, and `term NOT (phrases)` (occurrences of the term outside those phrases) |
 | `acc*`, `a?c` | wildcard (single terms) |
 | `title:x`, `body:x`, `author:x` | text fields |
-| `sourcetype:BLOG`, `sourcecountry:sa`, `lang:ar`, `domain:bbc.com`, `authorshort:x`, `source:"Arab News"` | exact (case-insensitive) |
+| `sourcetype:BLOG`, `sourcecountry:sa` or `sourceCountry:"Saudi Arabia"`, `lang:ar`, `domain:bbc.com`, `authorshort:x`, `source:"Arab News"` | exact (case-insensitive); country accepts an English name or a two-letter code, unknown names are an error |
+| `authorContains:Jadaan` (alias of `author:`) | author text contains the word |
 | `title:(a OR b)` | field applied to a group |
 
 Precedence: `OR` < `AND`/`NOT` < `NEAR` < `field:`. Operators must be UPPERCASE.
@@ -52,7 +53,7 @@ Precedence: `OR` < `AND`/`NOT` < `NEAR` < `field:`. Operators must be UPPERCASE.
 
 ## Notes / limits
 
-- `AND`/`NOT` inside `NEAR` operands is rejected (OpenSearch intervals can't express it).
+- `AND` inside `NEAR` operands is rejected, and so is a bare `NOT`; only `term NOT (...)` is supported (compiled with `not_contained_by`).
 - Arabic: normalization (alef/ya/ta-marbuta, diacritics), no stemming.
 - NEAR across title and body counts per field, not across them.
 - Ingest respects robots.txt; set `USER_AGENT` env with a contact URL.

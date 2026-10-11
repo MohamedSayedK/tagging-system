@@ -65,4 +65,28 @@ describe("compile", () => {
   it("AND inside NEAR is rejected", () => {
     expect(() => compileQuery("(a AND b) NEAR/3 c")).toThrow(QuerySyntaxError);
   });
+
+  it("`term NOT (phrases)` inside NEAR excludes occurrences inside those phrases", () => {
+    const dsl = JSON.stringify(compileQuery('(kingdom* NOT ("kingdom of jordan" OR "united kingdom")) NEAR/3 finance'));
+    expect(dsl).toContain('"not_contained_by"');
+    expect(dsl).toContain("kingdom of jordan");
+    expect(dsl).toContain("united kingdom");
+  });
+
+  it("authorContains: filters on the author text, not as a plain word", () => {
+    expect(compileQuery("authorContains:Jadaan")).toEqual({ match_phrase: { author: "Jadaan" } });
+  });
+
+  it("sourceCountry accepts a country name as well as a code", () => {
+    expect(compileQuery('sourceCountry:"Saudi Arabia"')).toEqual({ term: { sourcecountry: "sa" } });
+    expect(compileQuery("sourceCountry:SA")).toEqual({ term: { sourcecountry: "sa" } });
+  });
+
+  it("an unknown country name fails loudly", () => {
+    expect(() => compileQuery('sourceCountry:"Atlantis"')).toThrow(QuerySyntaxError);
+  });
+
+  it("a NEAR operand that is only a NOT is rejected", () => {
+    expect(() => compileQuery("(NOT a) NEAR/3 c")).toThrow(QuerySyntaxError);
+  });
 });

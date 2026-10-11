@@ -12,6 +12,7 @@ export const FIELD_ALIASES: Record<string, string> = {
   body: "body",
   text: "text",
   author: "author",
+  authorcontains: "author",
   authorshort: "authorshort",
   sourcetype: "sourcetype",
   sourcecountry: "sourcecountry",

@@ -4,20 +4,41 @@ import { parse } from "./parser.js";
 type Dsl = Record<string, unknown>;
 
 const TEXT_FIELDS = ["title", "body"];
-const FIELD_MAP: Record<string, { fields: string[]; keyword: boolean }> = {
+// Stored country codes are ISO 3166 alpha-2; queries may use English country names ("Saudi Arabia").
+let countryCodes: Map<string, string> | undefined;
+function countryCode(value: string): string {
+  const v = value.trim();
+  if (/^[A-Za-z]{2}$/.test(v)) return v;
+  if (!countryCodes) {
+    const names = new Intl.DisplayNames(["en"], { type: "region" });
+    countryCodes = new Map();
+    for (let a = 65; a <= 90; a++) {
+      for (let b = 65; b <= 90; b++) {
+        const code = String.fromCharCode(a, b);
+        const name = names.of(code);
+        if (name && name !== code) countryCodes.set(name.toLowerCase(), code);
+      }
+    }
+  }
+  const code = countryCodes.get(v.toLowerCase());
+  if (!code) throw new QuerySyntaxError(`Unknown country "${v}"; use an English country name or a two-letter code`);
+  return code;
+}
+
+const FIELD_MAP: Record<string, { fields: string[]; keyword: boolean; normalize?: (v: string) => string }> = {
   text: { fields: TEXT_FIELDS, keyword: false },
   title: { fields: ["title"], keyword: false },
   body: { fields: ["body"], keyword: false },
   author: { fields: ["author"], keyword: false },
   authorshort: { fields: ["authorshort"], keyword: true },
   sourcetype: { fields: ["sourcetype"], keyword: true },
-  sourcecountry: { fields: ["sourcecountry"], keyword: true },
+  sourcecountry: { fields: ["sourcecountry"], keyword: true, normalize: countryCode },
   lang: { fields: ["lang"], keyword: true },
   domain: { fields: ["domain"], keyword: true },
   source: { fields: ["source"], keyword: true },
 };
 
-interface Ctx { fields: string[]; keyword: boolean }
+interface Ctx { fields: string[]; keyword: boolean; normalize?: (v: string) => string }
 const DEFAULT_CTX: Ctx = { fields: TEXT_FIELDS, keyword: false };
 
 const hasWildcard = (s: string) => /[*?]/.test(s);
@@ -27,7 +48,7 @@ function compileNode(n: Node, ctx: Ctx): Dsl {
   switch (n.type) {
     case "term":
     case "phrase": {
-      const v = n.value;
+      const v = ctx.normalize && !hasWildcard(n.value) ? ctx.normalize(n.value) : n.value;
       if (ctx.keyword) {
         const value = v.toLowerCase();
         return any(ctx.fields.map((f) => (hasWildcard(v) ? { wildcard: { [f]: { value } } } : { term: { [f]: value } })));
@@ -79,6 +100,22 @@ function toInterval(n: Node): Dsl {
       return { any_of: { intervals: n.children.map(toInterval) } };
     case "near":
       return { all_of: { ordered: false, max_gaps: n.distance, intervals: n.children.map(toInterval) } };
+    case "and": {
+      // `A NOT B`: occurrences of A that are not inside an occurrence of B.
+      const positives = n.children.filter((c) => c.type !== "not");
+      const negatives = n.children.flatMap((c) => (c.type === "not" ? [c.child] : []));
+      if (positives.length !== 1 || negatives.length === 0) {
+        throw new QuerySyntaxError("AND is not allowed inside NEAR; use terms, phrases, OR groups, or `term NOT (...)`");
+      }
+      const excluded = negatives.map(toInterval);
+      return {
+        all_of: {
+          ordered: true,
+          intervals: [toInterval(positives[0]!)],
+          filter: { not_contained_by: excluded.length === 1 ? excluded[0] : { any_of: { intervals: excluded } } },
+        },
+      };
+    }
     default:
       throw new QuerySyntaxError(`${n.type.toUpperCase()} is not allowed inside NEAR; use terms, phrases, OR groups`);
   }
