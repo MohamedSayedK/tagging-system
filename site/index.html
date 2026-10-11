@@ -49,6 +49,7 @@
   <div class="wrap">
     <span class="brand">Tagging <b>System</b></span>
     <nav aria-label="Project">
+      <a href="app/">Live demo</a>
       <a href="#features">Features</a>
       <a href="#query">Query language</a>
       <a href="#run">Run it</a>
@@ -63,8 +64,9 @@
     <h1>Media monitoring for Arabic and English news.</h1>
     <p class="lede">Save topics as boolean queries, let a scheduled crawler read the outlets you care about, and read what was published, when, and from where. Built around a Talkwalker-style query language and Arabic-first search.</p>
     <div class="actions">
-      <a class="btn primary" href="https://github.com/MohamedSayedK/tagging-system">View on GitHub</a>
-      <a class="btn" href="prototypes/">See the design directions</a>
+      <a class="btn primary" href="app/">Try the live demo</a>
+      <a class="btn" href="https://github.com/MohamedSayedK/tagging-system">View on GitHub</a>
+      <a class="btn" href="prototypes/">Design directions</a>
     </div>
   </div>
 
@@ -105,7 +107,7 @@ npm run init-index
 npm run worker            # crawl sources.yaml on a schedule
 npm run api               # API on 127.0.0.1:3000
 npm run web               # UI on http://localhost:5173</code></pre>
-    <p style="margin-top:16px">The app needs OpenSearch, the API and the crawler, so this page is a project overview; the clickable <a href="prototypes/">design prototypes</a> run entirely in the browser with sample data.</p>
+    <p style="margin-top:16px">The <a href="app/">live demo</a> is this same interface answering from a bundled snapshot of real crawled headlines, with no server: nothing to install. Running the full system yourself (OpenSearch, the crawler and the API) is what the commands above do.</p>
   </section>
 </main>
 

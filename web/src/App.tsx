@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { createTopic, deleteTopic, FacetName, Facets, listSources, listTopics, ResultsPage, Topic, topicFacet, topicResults, updateTopic } from "./api";
 import { NO_FACETS } from "./facets";
 import { ColorPicker } from "./ColorPicker";
@@ -173,6 +173,12 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
 
   const selectedTopic = topics.find((t) => t.id === selectedId) ?? null;
 
+  // The public demo opens on its first topic so a visitor has something to read straight away.
+  useEffect(() => {
+    if (import.meta.env.MODE === "demo" && selectedId === null && topics.length > 0 && !name) select(topics[0]!);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topics.length]);
+
   const toolbar = (
     <div className="results-tools">
       <label className="inline">
@@ -212,6 +218,12 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
           ))}
         </div>
       </header>
+      {import.meta.env.MODE === "demo" && (
+        <aside role="note" aria-label="About this demo" className="demo-note">
+          <strong>Live demo.</strong> A snapshot of real crawled headlines from Arabic and English outlets, searched right in your browser.
+          Topics you create stay in this browser. <a href="https://github.com/MohamedSayedK/tagging-system">Source on GitHub</a>
+        </aside>
+      )}
       {confirmingDelete && selectedId && (
         <ConfirmDialog
           title={`Delete “${name}”?`}

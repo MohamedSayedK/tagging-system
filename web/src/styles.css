@@ -474,3 +474,7 @@ mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 3
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .trend-line { stroke-dasharray: none; }
 }
+
+.demo-note { padding: 8px 24px; background: var(--blue-wash); color: var(--ink); font-size: 14px; border-bottom: 1px solid var(--line); }
+.demo-note strong { color: var(--blue-deep); }
+.demo-note a { color: var(--blue-deep); font-weight: 600; }

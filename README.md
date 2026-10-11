@@ -60,9 +60,16 @@ Precedence: `OR` < `AND`/`NOT` < `NEAR` < `field:`. Operators must be UPPERCASE.
 
 ## Links
 
+- **Live demo (nothing to install):** https://mohamedsayedk.github.io/tagging-system/app/
 - Project page: https://mohamedsayedk.github.io/tagging-system/
 - Design prototypes (three directions, clickable): https://mohamedsayedk.github.io/tagging-system/prototypes/
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## The public demo
+
+The GitHub Pages demo is the real UI with the API replaced by an in-browser implementation (web/src/demo/): the same query parser, an equivalent search over a trimmed snapshot of crawled articles (web/public/demo-data.json, refreshed with 
+pm run demo:data), and topics kept in the visitor's own browser. Build it locally with 
+pm run build:demo.
