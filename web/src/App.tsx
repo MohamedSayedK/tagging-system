@@ -9,6 +9,7 @@ import { ErrorNotice, Loading } from "./Notices";
 import { QueryField, useQueryCheck } from "./QueryField";
 import { ResultsChart } from "./ResultsChart";
 import { Density, ResultsList } from "./ResultsList";
+import { RegistryPage } from "./RegistryPage";
 import { SourcesPage } from "./SourcesPage";
 import { colorName } from "./topicColors";
 import { useRemote } from "./useRemote";
@@ -43,7 +44,8 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [facets, setFacets] = useState<Facets>(NO_FACETS);
-  const [view, setView] = useState<"topics" | "sources">("topics");
+  const [dedupe, setDedupe] = useState(false);
+  const [view, setView] = useState<"topics" | "sources" | "registry">("topics");
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState(true); // the topic form: open for a new topic, folded while reading one
   const [density, setDensityState] = useState<Density>(savedDensity);
@@ -68,9 +70,9 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
   const resultsLoad = useRemote(
     () =>
       selectedId
-        ? topicResults(selectedId, { sort, size: PAGE_SIZE, ...range(from, to), ...facets }).then((page) => ({ topicId: selectedId, page }))
+        ? topicResults(selectedId, { sort, size: PAGE_SIZE, dedupe, ...range(from, to), ...facets }).then((page) => ({ topicId: selectedId, page }))
         : null,
-    [selectedId, sort, from, to, facets, refresh],
+    [selectedId, sort, from, to, facets, dedupe, refresh],
   );
   const loaded = resultsLoad.data && resultsLoad.data.topicId === selectedId ? resultsLoad.data.page : null;
   const refreshing = resultsLoad.status === "loading" && loaded !== null;
@@ -162,7 +164,7 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
     setLoadingMore(true);
     setMoreError(null);
     try {
-      const next = await topicResults(selectedId, { sort, size: PAGE_SIZE, offset: page.results.length, ...range(from, to), ...facets });
+      const next = await topicResults(selectedId, { sort, size: PAGE_SIZE, offset: page.results.length, dedupe, ...range(from, to), ...facets });
       resultsLoad.setData({ topicId: selectedId, page: { ...page, total: next.total, results: [...page.results, ...next.results] } });
     } catch (e) {
       setMoreError(`Couldn't load more results: ${reason(e)}`);
@@ -210,6 +212,11 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
         <button type="button" aria-pressed={view === "sources"} onClick={() => setView("sources")}>
           Sources
         </button>
+        {import.meta.env.MODE !== "demo" && (
+          <button type="button" aria-pressed={view === "registry"} onClick={() => setView("registry")}>
+            Registry
+          </button>
+        )}
         <div className="segmented theme-toggle" role="group" aria-label="Theme">
           {(["light", "dark", "auto"] as Theme[]).map((k) => (
             <button key={k} type="button" aria-pressed={theme === k} onClick={() => setTheme(k)}>
@@ -237,7 +244,9 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
           <p>This removes the topic and its saved query. The articles themselves are not affected. This can't be undone.</p>
         </ConfirmDialog>
       )}
-      {view === "sources" ? (
+      {view === "registry" ? (
+        <RegistryPage now={now()} />
+      ) : view === "sources" ? (
         sourcesLoad.status === "error" ? (
           <ErrorNotice title="Couldn't load the sources." reason={sourcesLoad.error} onRetry={sourcesLoad.retry} />
         ) : sourcesLoad.data ? (
@@ -261,6 +270,8 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
               setTo(t);
             }}
             now={now()}
+            dedupe={dedupe}
+            onDedupe={setDedupe}
           />
           <div className="shell">
             <div className="rail">
@@ -297,7 +308,7 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
                   selected={facets}
                   onToggle={toggleFacet}
                   loadFacet={(facet, q, size) =>
-                    selectedId ? topicFacet(selectedId, facet, { q, size, ...range(from, to), ...facets }) : Promise.resolve([])
+                    selectedId ? topicFacet(selectedId, facet, { q, size, dedupe, ...range(from, to), ...facets }) : Promise.resolve([])
                   }
                   scopeKey={JSON.stringify([selectedId, from, to, facets, refresh])}
                 />

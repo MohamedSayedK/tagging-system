@@ -70,13 +70,15 @@ export interface ResultsQuery extends Partial<Facets> {
   size?: number;
   from?: string;
   to?: string;
+  /** Leave out stories an earlier article already carried. */
+  dedupe?: boolean;
 }
 
 function queryString(q: object) {
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(q)) {
     if (Array.isArray(v)) v.forEach((x) => params.append(k, x));
-    else if (v !== undefined && v !== "") params.set(k, String(v));
+    else if (v !== undefined && v !== "" && v !== false) params.set(k, String(v));
   }
   const qs = params.toString();
   return qs ? `?${qs}` : "";
@@ -92,6 +94,8 @@ export function topicFacet(id: string, facet: FacetName, q: ResultsQuery & { q?:
 
 export interface SourceStatus {
   name: string;
+  /** `registry` for domains promoted from the registry; absent or `curated` for sources.yaml entries. */
+  origin?: "curated" | "registry";
   domain: string;
   sourcetype: string;
   country?: string;
@@ -108,6 +112,25 @@ export interface SourceStatus {
 }
 
 export const listSources = () => request<SourceStatus[]>("/sources");
+
+/** A news domain the registry has seen publishing (GDELT discovery). Not necessarily crawled. */
+export interface RegistryRecord {
+  domain: string;
+  firstSeen: string;
+  lastSeen: string;
+  articleCount: number;
+  languages: string[];
+  /** The outcome of the last attempt to find a feed; absent when the domain was never tried. */
+  crawl?: { status: "active" | "no_feed" | "unreachable" | "blocked"; checkedAt: string };
+  /** ISO 3166 code from the owner's overrides or the domain suffix; absent when unknown. */
+  country?: string;
+  /** Republishes other outlets' stories rather than reporting its own. */
+  aggregator?: boolean;
+}
+export interface RegistryPage { total: number; items: RegistryRecord[] }
+export interface RegistryQuery { lang?: string; q?: string; from?: number; size?: number; hideAggregators?: boolean }
+
+export const listRegistry = (q: RegistryQuery = {}) => request<RegistryPage>(`/registry${queryString(q)}`);
 
 export const createTopic = (t: Omit<Topic, "id">) => request<Topic>("/topics", post(t));
 

@@ -15,6 +15,8 @@ export interface SearchParams {
   sourcecountry?: string | string[];
   domain?: string | string[];
   lang?: string | string[];
+  /** Leave out stories already carried by an earlier article (syndicated copies). */
+  dedupe?: boolean | string;
 }
 
 export interface Article {
@@ -48,7 +50,9 @@ const values = (v: string | string[] | undefined) => (v === undefined ? [] : Arr
 // values (OR within a facet, AND across facets).
 function scope(p: SearchParams) {
   const must = [compileQuery(p.query)];
-  const must_not = p.exclude?.trim() ? [compileQuery(p.exclude)] : [];
+  const must_not: object[] = p.exclude?.trim() ? [compileQuery(p.exclude)] : [];
+  // Query strings carry booleans as text; articles stored before duplicates were tracked have no flag and stay.
+  if (p.dedupe === true || p.dedupe === "true") must_not.push({ term: { duplicate: true } });
   const filter = p.from || p.to ? [{ range: { published: { gte: p.from, lte: p.to } } }] : [];
 
   const facetFilter = (name: FacetName) => {

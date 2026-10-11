@@ -310,6 +310,14 @@ mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 3
 .sources-tools { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-bottom: 16px; }
 .sources-tools input[type="search"] { flex: 1 1 280px; max-width: 460px; padding: 10px 14px; font: 500 15px var(--ui); border: 1px solid var(--line-strong); border-radius: 8px; background: var(--field); color: var(--ink); }
 .segmented .n { margin-inline-start: 4px; font-weight: 500; opacity: 0.75; }
+/* A labelled checkbox in a tool row ("Remove duplicates", "Hide aggregators"): a real target, not a bare box. */
+.dedupe { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.dedupe input { width: 18px; height: 18px; margin: 0; accent-color: var(--blue-deep); cursor: pointer; }
+.sources-more { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 16px; color: var(--muted); font-size: 14px; }
+.sources-more button { font-weight: 600; font-size: 14px; padding: 8px 16px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--sheet); color: var(--ink); }
+.sources-more button:hover:not(:disabled) { background: var(--wash); }
+.sources-more button:disabled { opacity: 0.6; cursor: default; }
+.cov.muted small, td small.cov { display: block; margin-top: 2px; font-size: 13px; font-weight: 500; color: var(--muted); }
 
 .sources-table-wrap { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); overflow-x: auto; }
 .sources-page table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 15px; }

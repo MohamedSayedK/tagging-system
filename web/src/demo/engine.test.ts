@@ -30,6 +30,22 @@ describe("demo engine: same answers as the OpenSearch engine", () => {
   it("NEAR within a distance", () => expect(ids("citizen NEAR/3 account")).toEqual(["2"]));
   it("NEAR too far for 3 but fine for 10", () => expect(ids("citizen NEAR/10 account")).toEqual(["2", "3"]));
   it("NEAR over OR groups", () => expect(ids('("حساب" OR citizen) NEAR/2 ("المواطن" OR account)')).toEqual(["1", "2"]));
+  it("PRE/n needs the left operand first", () => {
+    expect(ids("citizen PRE/3 account")).toEqual(["2"]);
+    expect(ids("account PRE/3 citizen")).toEqual([]);
+    expect(ids("citizen PRE/10 account")).toEqual(["2", "3"]);
+  });
+  it('"words"~n allows the words to be up to n positions apart', () => {
+    // body: "citizen account programme announced the support payment" puts 5 words between them
+    expect(ids('body:"citizen payment"~5')).toEqual(["2"]);
+    expect(ids('body:"citizen payment"~4')).toEqual([]);
+    // the title has them two words apart, so a title search finds it with a small slop
+    expect(ids('title:"citizen payment"~1')).toEqual(["2"]);
+  });
+  it("accepts the Newsdesk field names content: and headline:", () => {
+    expect(ids("headline:weather")).toEqual(["3"]);
+    expect(ids("content:programme")).toEqual(["2"]);
+  });
   it("field filters are case-insensitive", () => expect(ids("citizen AND sourcetype:BLOG AND sourcecountry:US")).toEqual(["2", "3"]));
   it("NOT", () => expect(ids("citizen NOT weather")).toEqual(["2"]));
   it("wildcards", () => expect(ids("citiz*")).toEqual(["2", "3"]));

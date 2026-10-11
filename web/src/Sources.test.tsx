@@ -98,6 +98,17 @@ describe("sources page", () => {
     expect(row.getByText("Waiting for first run")).toBeInTheDocument();
   });
 
+  it("marks sources that came from the registry, so they are told apart from the hand-picked ones", async () => {
+    installFakeApi({ sources: [src({ name: "Picked Daily", origin: "curated" }), src({ name: "dostor.org", origin: "registry" })] });
+    const user = userEvent.setup();
+    render(<App now={() => NOW} />);
+    await user.click(screen.getByRole("button", { name: "Sources" }));
+    await screen.findByRole("table", { name: "Sources" });
+
+    expect(within(screen.getByRole("row", { name: /dostor\.org/ })).getByText("From registry")).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /Picked Daily/ })).queryByText("From registry")).not.toBeInTheDocument();
+  });
+
   it("goes back to the topics view", async () => {
     const user = await openSources();
 

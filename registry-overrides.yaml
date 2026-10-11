@@ -1,0 +1,52 @@
+# Owner-editable facts the registry cannot work out by itself. Read by the registry API and by promotion.
+#
+# country:       outlets on generic domains (.com/.net/.org/.news) whose country the suffix does not say.
+#                Domains under a country suffix (.sa, .eg, .ae, ...) need no entry.
+# aggregators:   sites that republish others' stories; they are skipped when promoting to crawl sources.
+#                A built-in list already covers the common ones (see src/registry/overrides.ts).
+# notAggregators: take a domain off the built-in list.
+
+country:
+  # Saudi Arabia
+  argaam.com: SA
+  arabnews.com: SA
+  aawsat.com: SA
+  sabq.org: SA
+  # United Arab Emirates
+  gulfnews.com: AE
+  khaleejtimes.com: AE
+  thenationalnews.com: AE
+  emaratalyoum.com: AE
+  skynewsarabia.com: AE
+  zawya.com: AE
+  # Qatar
+  aljazeera.net: QA
+  aljazeera.com: QA
+  # Egypt
+  dostor.org: EG
+  vetogate.com: EG
+  shorouknews.com: EG
+  elwatannews.com: EG
+  youm7.com: EG
+  almasryalyoum.com: EG
+  masrawy.com: EG
+  akhbarelyom.com: EG
+  egyptindependent.com: EG
+  # Jordan
+  ammonnews.net: JO
+  alghad.com: JO
+  jo24.net: JO
+  # Palestine
+  alquds.com: PS
+  maannews.net: PS
+  alwatanvoice.com: PS
+  # Lebanon
+  annahar.com: LB
+  almayadeen.net: LB
+  # Libya
+  libyaakhbar.com: LY
+  # Morocco
+  hespress.com: MA
+
+aggregators: []
+notAggregators: []

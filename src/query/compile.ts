@@ -53,11 +53,12 @@ function compileNode(n: Node, ctx: Ctx): Dsl {
         const value = v.toLowerCase();
         return any(ctx.fields.map((f) => (hasWildcard(v) ? { wildcard: { [f]: { value } } } : { term: { [f]: value } })));
       }
+      const slop = n.type === "phrase" ? n.slop : undefined;
       return any(
         ctx.fields.map((f) =>
           n.type === "term" && hasWildcard(v)
             ? { wildcard: { [f]: { value: v.toLowerCase() } } }
-            : { match_phrase: { [f]: v } },
+            : { match_phrase: { [f]: slop === undefined ? v : { query: v, slop } } },
         ),
       );
     }
@@ -95,11 +96,13 @@ function toInterval(n: Node): Dsl {
         ? { wildcard: { pattern: n.value.toLowerCase() } }
         : { match: { query: n.value, max_gaps: 0, ordered: true } };
     case "phrase":
-      return { match: { query: n.value, max_gaps: 0, ordered: true } };
+      return n.slop === undefined
+        ? { match: { query: n.value, max_gaps: 0, ordered: true } }
+        : { match: { query: n.value, max_gaps: n.slop, ordered: false } };
     case "or":
       return { any_of: { intervals: n.children.map(toInterval) } };
     case "near":
-      return { all_of: { ordered: false, max_gaps: n.distance, intervals: n.children.map(toInterval) } };
+      return { all_of: { ordered: n.ordered === true, max_gaps: n.distance, intervals: n.children.map(toInterval) } };
     case "and": {
       // `A NOT B`: occurrences of A that are not inside an occurrence of B.
       const positives = n.children.filter((c) => c.type !== "not");

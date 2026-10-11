@@ -72,14 +72,34 @@ function phraseSpans(field: string[], phrase: string[]): Span[] {
   return out;
 }
 
-function leafSpans(field: string[], value: string, isTerm: boolean): Span[] {
+/** `"a b c"~n`: every word within a window of the phrase's length plus n positions, in any order. */
+function slopSpans(field: string[], words: string[], slop: number): Span[] {
+  const out: Span[] = [];
+  if (words.length === 0) return out;
+  const width = words.length + slop;
+  for (let i = 0; i < field.length; i++) {
+    if (!words.includes(field[i]!)) continue;
+    const window = field.slice(i, i + width);
+    const pool = [...window];
+    const all = words.every((w) => {
+      const at = pool.indexOf(w);
+      if (at < 0) return false;
+      pool.splice(at, 1);
+      return true;
+    });
+    if (all) out.push([i, Math.min(field.length, i + width) - 1]);
+  }
+  return out;
+}
+
+function leafSpans(field: string[], value: string, isTerm: boolean, slop?: number): Span[] {
   if (isTerm && hasWildcard(value)) {
     const re = wildcardRegex(value);
     const out: Span[] = [];
     field.forEach((t, i) => re.test(t) && out.push([i, i]));
     return out;
   }
-  return phraseSpans(field, tokens(value));
+  return slop === undefined ? phraseSpans(field, tokens(value)) : slopSpans(field, tokens(value), slop);
 }
 
 /** Spans in one field where an operand of NEAR (term, phrase, OR group, nested NEAR) matches. */
@@ -88,7 +108,7 @@ function spansOf(node: Node, field: string[]): Span[] {
     case "term":
       return leafSpans(field, node.value, true);
     case "phrase":
-      return leafSpans(field, node.value, false);
+      return leafSpans(field, node.value, false, node.slop);
     case "or":
       return node.children.flatMap((c) => spansOf(c, field));
     case "and": {
@@ -104,6 +124,8 @@ function spansOf(node: Node, field: string[]): Span[] {
         const merged: Span[] = [];
         for (const a of acc) {
           for (const b of right) {
+            // PRE/n: the left operand must end before the right one starts.
+            if (node.ordered && a[1] >= b[0]) continue;
             const [first, second] = a[0] <= b[0] ? [a, b] : [b, a];
             const gap = Math.max(0, second[0] - first[1] - 1);
             if (gap <= node.distance) merged.push([Math.min(a[0], b[0]), Math.max(a[1], b[1])]);
@@ -155,7 +177,7 @@ function matches(node: Node, d: Prepared, ctx: Ctx = { fields: ["title", "body"]
         const want = (ctx.keyword === "sourcecountry" && !hasWildcard(node.value) ? countryCode(node.value) : node.value).toLowerCase();
         return hasWildcard(want) ? new RegExp(`^${want.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i").test(have) : have === want;
       }
-      return ctx.fields.some((f) => leafSpans(d[f], node.value, node.type === "term").length > 0);
+      return ctx.fields.some((f) => leafSpans(d[f], node.value, node.type === "term", node.type === "phrase" ? node.slop : undefined).length > 0);
     }
     case "and":
       return node.children.every((c) => matches(c, d, ctx));

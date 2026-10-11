@@ -1,20 +1,60 @@
 import { Readability } from "@mozilla/readability";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { createRequire } from "node:module";
+import { createDomainLimiter } from "./domainLimiter.js";
 
 const robotsParser = createRequire(import.meta.url)("robots-parser") as (url: string, txt: string) => { isAllowed(url: string, ua?: string): boolean | undefined };
 
 export const USER_AGENT = process.env.USER_AGENT ?? "TaggingBot/0.1 (+set-USER_AGENT-with-contact-url)";
 const TIMEOUT = 15_000;
 
-export async function fetchText(url: string): Promise<string> {
+// One request per second per site by default: many sources can run at once, but no outlet is hammered.
+const limiter = createDomainLimiter({ minIntervalMs: Number(process.env.DOMAIN_MIN_INTERVAL_MS ?? 1000) });
+
+// A slow or briefly overloaded site, or a hiccup on our own network, should cost a second try, not a failed run.
+const RETRY_DELAY_MS = Number(process.env.FETCH_RETRY_DELAY_MS ?? 1500);
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+class HttpStatusError extends Error {
+  constructor(readonly status: number, url: string) {
+    super(`HTTP ${status} ${url}`);
+  }
+}
+
+/** Node's fetch reports every network failure as "fetch failed"; the useful part is on `cause`. */
+function explain(e: unknown): Error {
+  if (e instanceof HttpStatusError || !(e instanceof Error)) return e as Error;
+  const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+  const detail = cause?.code ?? cause?.message;
+  return detail && !e.message.includes(detail) ? new Error(`${e.message} (${detail})`) : e;
+}
+
+async function fetchOnce(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: { "user-agent": USER_AGENT, accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.5" },
     signal: AbortSignal.timeout(TIMEOUT),
     redirect: "follow",
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
+  if (!res.ok) throw new HttpStatusError(res.status, url);
   return res.text();
+}
+
+export function fetchText(url: string): Promise<string> {
+  return limiter.run(new URL(url).hostname, async () => {
+    // The retry stays inside the site's slot, so politeness is kept.
+    try {
+      return await fetchOnce(url);
+    } catch (first) {
+      const worthRetrying = first instanceof HttpStatusError ? RETRYABLE_STATUS.has(first.status) : true;
+      if (!worthRetrying) throw first;
+      if (RETRY_DELAY_MS > 0) await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+      try {
+        return await fetchOnce(url);
+      } catch (second) {
+        throw explain(second);
+      }
+    }
+  });
 }
 
 const robotsCache = new Map<string, Promise<ReturnType<typeof robotsParser> | null>>();

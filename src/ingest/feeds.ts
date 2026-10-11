@@ -25,6 +25,14 @@ const iso = (v: any): string | undefined => {
 };
 const stripHtml = (s?: string) => s?.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() || undefined;
 
+/** The child sitemap URLs of a `<sitemapindex>`; empty when the body is not an index. */
+export function parseSitemapIndex(body: string): string[] {
+  const doc = xml.parse(body);
+  return arr<any>(doc.sitemapindex?.sitemap)
+    .map((s) => text(s.loc))
+    .filter((u): u is string => Boolean(u));
+}
+
 export function parseFeed(body: string, kind: "rss" | "sitemap"): FeedItem[] {
   const doc = xml.parse(body);
   if (kind === "sitemap") {

@@ -13,6 +13,9 @@
     "build:web": "vite build --config web/vite.config.ts",
     "worker": "tsx src/ingest/worker.ts",
     "repair": "tsx src/ingest/repair.ts",
+    "discover:gdelt": "tsx src/ingest/discoverGdelt.ts",
+    "promote": "tsx src/ingest/promoteRegistry.ts",
+    "seed:wikidata": "tsx src/ingest/seedWikidata.ts",
     "demo:data": "tsx src/ingest/exportDemo.ts",
     "build:demo": "vite build --config web/vite.config.ts --mode demo --base ./ --outDir ../site/app --emptyOutDir"
   },
@@ -21,10 +24,12 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
+    "@fastify/static": "^10.1.6",
     "@mozilla/readability": "^0.6.0",
     "@opensearch-project/opensearch": "^3.9.0",
     "fast-xml-parser": "^5.11.2",
     "fastify": "^5.12.5",
+    "fflate": "^0.8.3",
     "jsdom": "^30.1.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

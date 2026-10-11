@@ -17,6 +17,24 @@ describe("parser", () => {
     expect(ast).toMatchObject({ type: "and", children: [{ type: "term" }, { type: "near", distance: 5 }] });
   });
 
+  it("PRE/n is NEAR/n that also requires the order: left before right", () => {
+    expect(parse("minister PRE/3 finance")).toEqual({
+      type: "near",
+      distance: 3,
+      ordered: true,
+      children: [{ type: "term", value: "minister" }, { type: "term", value: "finance" }],
+    });
+  });
+
+  it('"words"~n is a phrase whose words may be up to n positions apart', () => {
+    expect(parse('"john kennedy"~2')).toEqual({ type: "phrase", value: "john kennedy", slop: 2 });
+    expect(parse('title:"bmw electric"~5')).toMatchObject({ type: "field", field: "title", child: { type: "phrase", slop: 5 } });
+  });
+
+  it("a ~ that is not a proximity stays part of the word", () => {
+    expect(parse("a~b")).toEqual({ type: "term", value: "a~b" });
+  });
+
   it("`A NOT B` is A AND NOT B", () => {
     expect(parse("a NOT b")).toEqual({
       type: "and",
@@ -52,6 +70,25 @@ describe("compile", () => {
     expect(dsl).toContain('"intervals"');
     expect(dsl).toContain('"max_gaps":8');
     expect(dsl).toContain('"any_of"');
+  });
+
+  it("PRE/n becomes ordered intervals", () => {
+    const dsl = JSON.stringify(compileQuery("minister PRE/3 finance"));
+
+    expect(dsl).toContain('"max_gaps":3');
+    expect(dsl).toContain('"ordered":true');
+    // NEAR leaves the order free.
+    expect(JSON.stringify(compileQuery("minister NEAR/3 finance"))).toContain('"all_of":{"ordered":false');
+  });
+
+  it('"words"~n becomes a phrase query with slop', () => {
+    expect(compileQuery('body:"john kennedy"~2')).toEqual({ match_phrase: { body: { query: "john kennedy", slop: 2 } } });
+  });
+
+  it("accepts the Newsdesk names for the text fields: content, headline, byline", () => {
+    expect(compileQuery("content:budget")).toEqual(compileQuery("body:budget"));
+    expect(compileQuery("headline:budget")).toEqual(compileQuery("title:budget"));
+    expect(compileQuery("byline:Jadaan")).toEqual(compileQuery("author:Jadaan"));
   });
 
   it("NOT goes to must_not", () => {

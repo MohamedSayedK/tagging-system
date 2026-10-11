@@ -1,10 +1,10 @@
 export type Node =
   | { type: "term"; value: string }
-  | { type: "phrase"; value: string }
+  | { type: "phrase"; value: string; slop?: number }
   | { type: "and"; children: Node[] }
   | { type: "or"; children: Node[] }
   | { type: "not"; child: Node }
-  | { type: "near"; children: Node[]; distance: number }
+  | { type: "near"; children: Node[]; distance: number; ordered?: boolean }
   | { type: "field"; field: string; child: Node };
 
 export class QuerySyntaxError extends Error {

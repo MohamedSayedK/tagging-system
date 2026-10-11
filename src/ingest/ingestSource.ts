@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { client, INDEX } from "../search/index-def.js";
 import { allowedByRobots, extractArticle, fetchText } from "./article.js";
+import { baseLanguage, detectLanguage } from "../registry/language.js";
 import { FeedItem, parseFeed } from "./feeds.js";
+import { titleKey } from "./titleKey.js";
 import { RunOutcome } from "./scheduler.js";
 import { DEFAULT_MAX_AGE_DAYS, DEFAULT_MAX_ITEMS, Source } from "./sources.js";
 
@@ -23,6 +25,40 @@ async function newItems(items: FeedItem[]): Promise<FeedItem[]> {
   const res = await client.mget({ index: INDEX, body: { ids: [...byId.keys()] }, _source: false });
   for (const d of (res.body as any).docs) if (d.found) byId.delete(d._id);
   return [...byId.values()];
+}
+
+/**
+ * Gives each new article a headline fingerprint and flags it as a duplicate when an earlier article (already
+ * stored, or earlier in this batch) carries the same story. The first outlet to publish is the one kept.
+ */
+let unrefreshedWrites = false; // articles stored by this process that searches cannot see yet
+
+async function markDuplicates(docs: { id: string; doc: Record<string, unknown> }[]): Promise<void> {
+  const keyed = docs.flatMap((d) => {
+    const key = titleKey(d.doc.title as string | undefined);
+    return key ? [{ d, key }] : [];
+  });
+  if (!keyed.length) return;
+  // Without this, a story carried by two outlets crawled seconds apart would both look "first".
+  if (unrefreshedWrites) {
+    unrefreshedWrites = false;
+    await client.indices.refresh({ index: INDEX });
+  }
+  const res = await client.search({
+    index: INDEX,
+    body: <any>{
+      size: 0,
+      query: { bool: { filter: [{ terms: { titlekey: [...new Set(keyed.map((k) => k.key))] } }, { bool: { must_not: { term: { duplicate: true } } } }] } },
+      aggs: { keys: { terms: { field: "titlekey", size: keyed.length } } },
+    },
+  });
+  const stored = new Set<string>(((res.body as any).aggregations.keys.buckets as any[]).map((b) => b.key));
+  const seen = new Set(stored);
+  for (const { d, key } of keyed) {
+    d.doc.titlekey = key;
+    d.doc.duplicate = seen.has(key);
+    seen.add(key);
+  }
 }
 
 /** Reads a source's feeds, stores articles not seen before, and reports what happened. */
@@ -71,6 +107,8 @@ export async function ingestSource(src: Omit<Source, "interval" | "maxItems" | "
       console.warn(`[${src.name}] article failed ${it.url}: ${(e as Error).message}`);
     }
     if (!title && !body) return;
+    // A configured language wins; otherwise the page's own (`ar-SA` -> `ar`), else a guess from the script.
+    lang = baseLanguage(lang) ?? detectLanguage([title ?? "", body]);
     const now = new Date().toISOString();
     docs.push({
       id: idOf(it.url),
@@ -91,12 +129,15 @@ export async function ingestSource(src: Omit<Source, "interval" | "maxItems" | "
     });
   });
 
+  await markDuplicates(docs);
+
   let indexed = 0;
   if (docs.length) {
     const res = await client.bulk({
       refresh: false,
       body: docs.flatMap((d) => [{ create: { _index: INDEX, _id: d.id } }, d.doc]),
     });
+    unrefreshedWrites = true;
     const results = (res.body as any).items as any[];
     const failed = results.filter((i) => i.create.error && i.create.status !== 409);
     indexed = results.length - failed.length;

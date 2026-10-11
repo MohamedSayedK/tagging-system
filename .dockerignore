@@ -1,0 +1,14 @@
+node_modules
+web/node_modules
+web/dist
+site
+design
+docs
+test
+.git
+.github
+.impeccable
+.claude
+*.log
+.env
+.env.*

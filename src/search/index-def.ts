@@ -3,6 +3,9 @@
 export const INDEX = process.env.ARTICLES_INDEX ?? "articles";
 export const TOPICS_INDEX = process.env.TOPICS_INDEX ?? "topics";
 export const RUNS_INDEX = process.env.RUNS_INDEX ?? "source_runs";
+export const REGISTRY_INDEX = process.env.REGISTRY_INDEX ?? "source_registry";
+export const REGISTRY_STATE_INDEX = `${REGISTRY_INDEX}_state`;
+export const CRAWL_SOURCES_INDEX = process.env.CRAWL_SOURCES_INDEX ?? "crawl_sources";
 
 export const client = new Client({ node: process.env.OPENSEARCH_URL ?? "http://localhost:9200" });
 
@@ -37,12 +40,17 @@ const mappings: any = {
     lang: { type: "keyword", normalizer: "lc" },
     published: { type: "date" },
     fetched: { type: "date" },
+    // Fingerprint of the headline, and whether an earlier article already carried the same story.
+    titlekey: { type: "keyword" },
+    duplicate: { type: "boolean" },
   },
 };
 
 export async function ensureIndices(): Promise<void> {
   const exists = await client.indices.exists({ index: INDEX });
   if (!exists.body) await client.indices.create({ index: INDEX, body: { settings, mappings } });
+  // An index created before a field existed gets it added; adding a field never changes existing documents.
+  else await client.indices.putMapping({ index: INDEX, body: { properties: mappings.properties } });
   const runs = await client.indices.exists({ index: RUNS_INDEX });
   if (!runs.body)
     await client.indices.create({
@@ -50,6 +58,48 @@ export async function ensureIndices(): Promise<void> {
       body: {
         settings: { number_of_shards: 1, number_of_replicas: 0 },
         mappings: { properties: { name: { type: "keyword" }, lastRun: { type: "date" }, nextRun: { type: "date" } } },
+      },
+    });
+  const registry = await client.indices.exists({ index: REGISTRY_INDEX });
+  const registryProperties: any = {
+    domain: { type: "keyword", normalizer: "lc" },
+    languages: { type: "keyword" },
+    country: { type: "keyword" },
+    articleCount: { type: "integer" },
+    firstSeen: { type: "date" },
+    lastSeen: { type: "date" },
+  };
+  if (!registry.body)
+    await client.indices.create({
+      index: REGISTRY_INDEX,
+      body: {
+        settings: { number_of_shards: 1, number_of_replicas: 0, analysis: { normalizer: { lc: { type: "custom", filter: ["lowercase"] } } } },
+        mappings: { properties: registryProperties },
+      },
+    });
+  else await client.indices.putMapping({ index: REGISTRY_INDEX, body: { properties: registryProperties } });
+  const registryState = await client.indices.exists({ index: REGISTRY_STATE_INDEX });
+  if (!registryState.body)
+    await client.indices.create({
+      index: REGISTRY_STATE_INDEX,
+      body: { settings: { number_of_shards: 1, number_of_replicas: 0 } },
+    });
+  const crawlSources = await client.indices.exists({ index: CRAWL_SOURCES_INDEX });
+  if (!crawlSources.body)
+    await client.indices.create({
+      index: CRAWL_SOURCES_INDEX,
+      body: {
+        settings: { number_of_shards: 1, number_of_replicas: 0 },
+        mappings: {
+          properties: {
+            domain: { type: "keyword" },
+            status: { type: "keyword" },
+            checkedAt: { type: "date" },
+            // The feed list and rejection reasons are read back whole, never searched.
+            source: { type: "object", enabled: false },
+            rejected: { type: "object", enabled: false },
+          },
+        },
       },
     });
   const t = await client.indices.exists({ index: TOPICS_INDEX });

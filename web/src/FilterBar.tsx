@@ -13,8 +13,10 @@ export function FilterBar(props: {
   to: string;
   onRange: (from: string, to: string) => void;
   now: Date;
+  dedupe: boolean;
+  onDedupe: (on: boolean) => void;
 }) {
-  const { panelOpen, onTogglePanel, facets, onRemove, onClearAll, from, to, onRange, now } = props;
+  const { panelOpen, onTogglePanel, facets, onRemove, onClearAll, from, to, onRange, now, dedupe, onDedupe } = props;
   const current = activePreset(from, to, now);
 
   return (
@@ -47,6 +49,13 @@ export function FilterBar(props: {
           <span>No active filters.</span>
         )}
       </div>
+
+      {import.meta.env.MODE !== "demo" && (
+        <label className="dedupe">
+          <input type="checkbox" checked={dedupe} onChange={(e) => onDedupe(e.target.checked)} />
+          Remove duplicates
+        </label>
+      )}
 
       <div className="range">
         {PRESETS.map((p) => (

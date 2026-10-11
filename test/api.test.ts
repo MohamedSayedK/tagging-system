@@ -4,6 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 process.env.ARTICLES_INDEX = "articles_api_test";
 process.env.TOPICS_INDEX = "topics_api_test";
 process.env.RUNS_INDEX = "source_runs_api_test";
+process.env.CRAWL_SOURCES_INDEX = "crawl_sources_api_test";
+process.env.REGISTRY_INDEX = "source_registry_api_sources_test";
 const yaml = `sources:
   - { name: Alpha, domain: alpha.test, sourcetype: BLOG, country: SA, lang: en, feeds: [{ url: "https://alpha.test/rss", kind: rss }] }
   - { name: Beta, domain: beta.test, sourcetype: ONLINENEWS_NEWSPAPER, interval: 2h, feeds: [{ url: "https://beta.test/rss", kind: rss }] }
@@ -20,18 +22,19 @@ const sourcesFile = `${mkdtempSync(`${tmpdir()}/api-sources-`)}/sources.yaml`;
 writeFileSync(sourcesFile, yaml);
 process.env.SOURCES_FILE = sourcesFile;
 const { buildApp } = await import("../src/api/app.js");
-const { client, INDEX, TOPICS_INDEX, RUNS_INDEX } = await import("../src/search/index-def.js");
+const { client, INDEX, TOPICS_INDEX, RUNS_INDEX, CRAWL_SOURCES_INDEX, REGISTRY_INDEX, REGISTRY_STATE_INDEX } = await import("../src/search/index-def.js");
 
 const app = await buildApp();
 const post = (url: string, payload: unknown) => app.inject({ method: "POST", url, payload: payload as object });
+const throwaway = [INDEX, TOPICS_INDEX, RUNS_INDEX, CRAWL_SOURCES_INDEX, REGISTRY_INDEX, REGISTRY_STATE_INDEX];
 
 beforeAll(async () => {
-  await client.indices.delete({ index: [INDEX, TOPICS_INDEX, RUNS_INDEX] }, { ignore: [404] });
+  await client.indices.delete({ index: throwaway }, { ignore: [404] });
   const { ensureIndices } = await import("../src/search/index-def.js");
   await ensureIndices();
 });
 afterAll(async () => {
-  await client.indices.delete({ index: [INDEX, TOPICS_INDEX, RUNS_INDEX] }, { ignore: [404] });
+  await client.indices.delete({ index: throwaway }, { ignore: [404] });
   await app.close();
 });
 
@@ -70,6 +73,26 @@ describe("sources API", () => {
     expect(byName.Beta).toMatchObject({ status: "ok", found: 40, indexed: 7, intervalMs: 7_200_000, nextRun: "2026-10-11T10:20:00.000Z" });
     expect(byName.Gamma).toMatchObject({ status: "pending", feedCount: 2 });
     expect(byName.Gamma.lastRun).toBeUndefined();
+    expect(byName.Alpha.origin).toBe("curated");
+  });
+
+  it("also lists sources promoted from the registry, marked as such, without overriding configured ones", async () => {
+    const { openSearchPromotions } = await import("../src/search/promotionStore.js");
+    const promoted = (domain: string) => ({
+      domain,
+      status: "active" as const,
+      checkedAt: "2026-10-11T12:00:00.000Z",
+      rejected: [],
+      source: { name: domain, domain, sourcetype: "ONLINENEWS_OTHER", country: "EG", lang: "ar", feeds: [{ url: `https://${domain}/rss`, kind: "rss" as const }] },
+    });
+    await openSearchPromotions().save(promoted("dostor.test"));
+    await openSearchPromotions().save(promoted("alpha.test")); // already configured as "Alpha"
+
+    const sources = (await app.inject({ method: "GET", url: "/sources" })).json();
+
+    const names = sources.map((s: any) => s.name).sort();
+    expect(names).toEqual(["Alpha", "Beta", "Gamma", "dostor.test"]);
+    expect(sources.find((s: any) => s.name === "dostor.test")).toMatchObject({ origin: "registry", country: "EG", lang: "ar", status: "pending" });
   });
 });
 

@@ -117,6 +117,7 @@ export function SourcesPage({ sources, now }: { sources: SourceStatus[]; now: Da
                 <tr key={s.name} className={s.status}>
                   <td dir="auto" className="name">
                     {s.name}
+                    {s.origin === "registry" && <small className="cov muted">From registry</small>}
                   </td>
                   <td>
                     <Status s={s} />

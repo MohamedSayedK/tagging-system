@@ -12,6 +12,14 @@ export interface FakeSource {
   name: string; domain: string; sourcetype: string; country?: string; lang?: string; feedCount: number; intervalMs: number;
   status: "pending" | "ok" | "failing";
   lastRun?: string; found?: number; indexed?: number; error?: string; consecutiveFailures?: number; nextRun?: string; durationMs?: number;
+  origin?: "curated" | "registry";
+}
+
+export interface FakeRegistryRecord {
+  domain: string; firstSeen: string; lastSeen: string; articleCount: number; languages: string[];
+  crawl?: { status: "active" | "no_feed" | "unreachable" | "blocked"; checkedAt: string };
+  country?: string;
+  aggregator?: boolean;
 }
 
 type Rule = { pattern: RegExp; times: number } & (
@@ -28,6 +36,7 @@ export interface FakeApiState {
   /** Keep the next matching request pending until the returned function is called. */
   hold(pattern: RegExp): () => void;
   sources: FakeSource[];
+  registry: FakeRegistryRecord[];
   topics: FakeTopic[];
   resultsByTopic: Record<string, FakeResult[]>;
   requests: { method: string; path: string; body?: any }[];
@@ -40,6 +49,7 @@ export function installFakeApi(init: Partial<FakeApiState> = {}) {
   const rules: Rule[] = [];
   const state: FakeApiState = {
     sources: [],
+    registry: [],
     topics: [],
     resultsByTopic: {},
     requests: [],
@@ -77,6 +87,22 @@ export function installFakeApi(init: Partial<FakeApiState> = {}) {
 
       if (method === "GET" && path === "/topics") return json(200, state.topics);
       if (method === "GET" && path === "/sources") return json(200, state.sources);
+
+      // Like the real API: most active first, `lang` takes a two- or three-letter code, `q` is a
+      // case-insensitive "contains" on the domain, paged by `from`/`size`.
+      if (method === "GET" && path === "/registry") {
+        const threeLetter: Record<string, string> = { ar: "ara", en: "eng", it: "ita" };
+        const lang = url.searchParams.get("lang")?.toLowerCase();
+        const q = url.searchParams.get("q")?.toLowerCase();
+        const from = Number(url.searchParams.get("from") ?? 0);
+        const size = Number(url.searchParams.get("size") ?? 50);
+        const matching = state.registry
+          .filter((r) => !lang || r.languages.includes(threeLetter[lang] ?? lang))
+          .filter((r) => !q || r.domain.toLowerCase().includes(q))
+          .filter((r) => url.searchParams.get("hideAggregators") !== "true" || !r.aggregator)
+          .sort((a, b) => b.articleCount - a.articleCount || a.domain.localeCompare(b.domain));
+        return json(200, { total: matching.length, items: matching.slice(from, from + size) });
+      }
 
       if (method === "POST" && path === "/query/validate") {
         const q: string = body.query;

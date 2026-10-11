@@ -4,6 +4,7 @@ import { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 process.env.ARTICLES_INDEX = "articles_ingest_test";
+process.env.DOMAIN_MIN_INTERVAL_MS = "0"; // the local test server is one "site"; do not wait between requests
 const { client, ensureIndices, INDEX } = await import("../src/search/index-def.js");
 const { ingestSource } = await import("../src/ingest/ingestSource.js");
 const { search } = await import("../src/search/search.js");
@@ -39,6 +40,21 @@ beforeAll(async () => {
       return send(200, "application/xml", `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>${items.join("")}</channel></rss>`);
     }
     if (req.url?.startsWith("/m")) return send(200, "text/html", article(`Story ${req.url.slice(2)} elephant`, "Elephants gathered by the river this morning."));
+    if (req.url === "/ar.xml") {
+      const items = ["/ar1", "/ar2"].map((p, i) => `<item><title>خبر عاجل ${i}</title><link>${base}${p}</link><pubDate>${new Date().toUTCString()}</pubDate></item>`);
+      return send(200, "application/xml", `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>${items.join("")}</channel></rss>`);
+    }
+    const arabic = (lang: string) =>
+      `<html${lang}><head><title>وزير المالية يعلن الميزانية</title></head><body><article><h1>وزير المالية يعلن الميزانية</h1><p>أعلن وزير المالية اليوم عن الميزانية الجديدة للدولة وأكد أن الإنفاق سيرتفع في القطاعات الأساسية.</p><p>وأضاف الوزير أن الحكومة ستواصل دعم المشاريع الكبرى خلال العام المقبل بحسب البيان الرسمي.</p></article></body></html>`;
+    if (req.url === "/ar1") return send(200, "text/html", arabic(' lang="ar-SA"'));
+    if (req.url === "/ar2") return send(200, "text/html", arabic(""));
+    // The same story republished by two outlets (one adds its name to the headline).
+    if (req.url === "/syn-a.xml" || req.url === "/syn-b.xml") {
+      const own = req.url === "/syn-a.xml" ? "/sa" : "/sb";
+      const title = req.url === "/syn-a.xml" ? "Cabinet approves national housing programme for young citizens" : "Cabinet approves national housing programme for young citizens | Outlet B";
+      return send(200, "application/xml", `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title><item><title>${title}</title><link>${base}${own}</link><pubDate>${new Date().toUTCString()}</pubDate></item></channel></rss>`);
+    }
+    if (req.url === "/sa" || req.url === "/sb") return send(200, "text/html", article("Cabinet approves national housing programme for young citizens", "The cabinet approved the programme on Sunday."));
     if (req.url === "/broken.xml") return send(500, "text/plain", "nope");
     return send(404, "text/plain", "not found");
   });
@@ -94,6 +110,30 @@ describe("ingestSource", () => {
     const outcome = await ingestSource(source(["/feed.xml"]));
 
     expect(outcome).toMatchObject({ ok: true, found: 2, indexed: 0 });
+  });
+
+  it("records a language for a source that configures none: the page's own, reduced to the base code, else detected from the text", async () => {
+    const { lang: _unused, ...noLang } = source(["/ar.xml"]);
+    const outcome = await ingestSource({ ...noLang, name: "Arabic Local" });
+
+    expect(outcome).toMatchObject({ ok: true, indexed: 2 });
+    await client.indices.refresh({ index: INDEX });
+    const r = await search({ query: "المالية" });
+    expect(r.results.map((x: any) => x.lang)).toEqual(["ar", "ar"]);
+  });
+
+  it("marks a story already stored under another outlet as a duplicate, and searches can leave duplicates out", async () => {
+    await ingestSource({ ...source(["/syn-a.xml"]), name: "Outlet A", domain: "a.test" });
+    await ingestSource({ ...source(["/syn-b.xml"]), name: "Outlet B", domain: "b.test" });
+    await client.indices.refresh({ index: INDEX });
+
+    const all = await search({ query: "housing programme" });
+    const unique = await search({ query: "housing programme", dedupe: true });
+
+    expect(all.total).toBe(2);
+    expect(unique.total).toBe(1);
+    expect(unique.results[0]).toMatchObject({ source: "Outlet A" }); // the first outlet to carry it is kept
+    expect(unique.aggregations.domains.map((d: any) => d.key)).toEqual(["a.test"]);
   });
 
   it("fails when no feed of the source could be read, saying why", async () => {

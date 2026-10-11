@@ -35,7 +35,7 @@ export function parse(input: string): Node {
     while (peek()?.kind === "near") {
       const op = next() as Extract<Token, { kind: "near" }>;
       const right = parseUnary();
-      left = { type: "near", children: [left, right], distance: op.distance };
+      left = { type: "near", children: [left, right], distance: op.distance, ...(op.ordered && { ordered: true }) };
     }
     return left;
   }
@@ -57,7 +57,7 @@ export function parse(input: string): Node {
         return inner;
       }
       case "word": return { type: "term", value: t.value };
-      case "phrase": return { type: "phrase", value: t.value };
+      case "phrase": return { type: "phrase", value: t.value, ...(t.slop !== undefined && { slop: t.slop }) };
       case "field": return { type: "field", field: t.field, child: parseAtom() };
       default: throw new QuerySyntaxError(`Unexpected ${t.kind.toUpperCase()}`, t.pos);
     }

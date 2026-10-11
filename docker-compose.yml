@@ -1,14 +1,54 @@
+# Development: `docker compose up -d` starts OpenSearch only; run the API and worker with npm.
+# Whole stack:  `docker compose --profile app up -d --build`   (needs BASIC_AUTH and USER_AGENT, see README)
 services:
   opensearch:
     image: opensearchproject/opensearch:2.17.1
+    restart: unless-stopped
     environment:
       - discovery.type=single-node
       - DISABLE_SECURITY_PLUGIN=true
       - DISABLE_INSTALL_DEMO_CONFIG=true
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      # 512m suits a laptop; give a real deployment 2g or more.
+      - OPENSEARCH_JAVA_OPTS=${OPENSEARCH_JAVA_OPTS:--Xms512m -Xmx512m}
     ports:
       - "127.0.0.1:9200:9200"
     volumes:
       - osdata:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  api:
+    profiles: ["app"]
+    build: .
+    restart: unless-stopped
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    environment:
+      OPENSEARCH_URL: http://opensearch:9200
+      HOST: 0.0.0.0
+      # Required: the API refuses to listen on 0.0.0.0 without it.
+      BASIC_AUTH: ${BASIC_AUTH:-}
+      PORT: "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  worker:
+    profiles: ["app"]
+    build: .
+    restart: unless-stopped
+    command: ["npm", "run", "worker"]
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    environment:
+      OPENSEARCH_URL: http://opensearch:9200
+      # Identifies the crawler to the sites it reads; must contain a contact URL, or promotion stays off.
+      USER_AGENT: ${USER_AGENT:-}
+      INGEST_CONCURRENCY: ${INGEST_CONCURRENCY:-16}
+
 volumes:
   osdata:
