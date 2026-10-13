@@ -39,7 +39,9 @@ The **registry** is every news domain we know exists; it is not the same as the 
 
 Seeding and promotion fetch other people's sites and a public directory, so they refuse to run until `USER_AGENT` carries a contact URL. The worker does all three on a schedule (below).
 
-`registry-overrides.yaml` is yours to edit: the country of outlets on `.com`/`.net` domains, extra aggregators, and domains the built-in aggregator list gets wrong.
+`registry-overrides.yaml` is yours to edit: the country of outlets on `.com`/`.net` domains, extra aggregators, domains the built-in aggregator list gets wrong, and the crawl scope (below).
+
+**Crawl scope.** By default only regional outlets are promoted and crawled: Arab-state domains, Arabic-language publishers, and outlets known to be in an Arab state, Turkey, Iran, Israel or Cyprus (by suffix, by the country the registry holds, or by your `country:` override). Everything else stays in the registry but is not crawled. `include:` in `registry-overrides.yaml` lets a domain in anyway, `blocked:` keeps one out whatever else says (a subdomain of a blocked site is blocked too). `PROMOTE_SCOPE=all` drops the region rule and keeps the blocklist. Sources already promoted are re-checked against the scope every few minutes: a source that falls out stops being crawled, and its stored articles are kept.
 
 `GET /registry?lang=ar&q=news&hideAggregators=true&from=0&size=50` lists domains, most articles seen first, each with `country`, `aggregator` and `crawl` (the outcome of the last promotion attempt). `lang` takes `ar` or `ara`. The UI shows it on the **Registry** tab (hidden in the public demo).
 
@@ -62,6 +64,7 @@ Open http://127.0.0.1:3000. Put a TLS-terminating reverse proxy in front before 
 | `OPENSEARCH_URL` | `http://localhost:9200` | |
 | `INGEST_CONCURRENCY` | 4 (16 in Docker) | Sources and article fetches in flight; per-site politeness still applies |
 | `DOMAIN_MIN_INTERVAL_MS` | `1000` | Least time between requests to one site |
+| `PROMOTE_SCOPE` | `regional` | `regional` or `all`: which registry domains may become crawl sources (see Crawl scope) |
 | `DISCOVER_EVERY`, `PROMOTE_EVERY` | `1h` | Worker jobs; `off` disables. `PROMOTE_BATCH` (25) sets domains per run, `DISCOVER_HOURS` (24) the window |
 | `SEED_WIKIDATA_EVERY` | `7d` | `off` disables |
 | `RETENTION_DAYS` | none | Delete articles published longer ago, checked daily (minimum 7). Off unless set |
@@ -83,13 +86,16 @@ Open http://127.0.0.1:3000. Put a TLS-terminating reverse proxy in front before 
 | `sourcetype:BLOG`, `sourcecountry:sa` or `sourceCountry:"Saudi Arabia"`, `lang:ar`, `domain:bbc.com`, `authorshort:x`, `source:"Arab News"` | exact (case-insensitive); country accepts an English name or a two-letter code, unknown names are an error |
 | `authorContains:Jadaan` (alias of `author:`) | author text contains the word |
 | `title:(a OR b)` | field applied to a group |
+| `stem:المستفيد`, `stem:"citizen accounts"`, `stem:(a NEAR/5 b)` | opt-in stemmed search of title and body: `المستفيد` also finds `للمستفيدين`, `beneficiary` also finds `beneficiaries`. Wildcards are refused. After upgrading an existing index, run `npm run reindex:stem` once so old articles are covered |
+| `budget^2`, `"a b"^3`, `title:budget^1.5` | boost: the match counts that many times more in the **Most relevant** sort (`sort=relevance`); no effect on the date sorts or on which articles match. On terms and phrases only, not groups; not allowed inside `NEAR`/`PRE` |
+| `harvestDate:[2026-10-01 TO 2026-10-12]`, `publishedDate:[2026-10-01 TO *]` | date range, both ends inclusive; a date without a time covers the whole UTC day; `*` leaves a side open. `harvestDate` is when the crawler stored the article (older articles stored before 2026-10-11 may lack it), `publishedDate` is the outlet's date. Not allowed inside `NEAR` |
 
 Precedence: `OR` < `AND`/`NOT` < `NEAR`/`PRE` < `field:`. Operators must be UPPERCASE.
 
 ## API
 
 - `POST /query/validate` `{query}` → AST + OpenSearch DSL, or 400 with position
-- `POST /search` `{query, exclude?, from?, to?, sort?: recent|oldest, offset?, size?, interval?: hour|day|week|month, sourcetype?, sourcecountry?, domain?}` → results, highlights, aggregations (over time, source types, countries, domains). Facet filters take one value or an array (`GET /topics/:id/results?sourcetype=a&sourcetype=b`): OR within a facet, AND across facets. Each facet's own options ignore its own filter so more values can be added.
+- `POST /search` `{query, exclude?, from?, to?, sort?: recent|oldest|relevance, offset?, size?, interval?: hour|day|week|month, sourcetype?, sourcecountry?, domain?}` → results, highlights, aggregations (over time, source types, countries, domains). Facet filters take one value or an array (`GET /topics/:id/results?sourcetype=a&sourcetype=b`): OR within a facet, AND across facets. Each facet's own options ignore its own filter so more values can be added.
 - `GET /registry?lang&q&hideAggregators&from&size` → `{total, items:[{domain, firstSeen, lastSeen, articleCount, languages, country?, aggregator, crawl?}]}`: domains the registry has seen (see "Source registry")
 - `GET /status` → `{ok, articles, registry:{domains}, sources:{configured, fromRegistry, failing}}`; `GET /health` → `{ok}` (open even with `BASIC_AUTH`)
 - `POST /search` and `GET /topics/:id/results` also take `dedupe=true`: leave out stories an earlier article already carried (same headline fingerprint)
@@ -100,7 +106,7 @@ Precedence: `OR` < `AND`/`NOT` < `NEAR`/`PRE` < `field:`. Operators must be UPPE
 ## Notes / limits
 
 - `AND` inside `NEAR` operands is rejected, and so is a bare `NOT`; only `term NOT (...)` is supported (compiled with `not_contained_by`).
-- Arabic: normalization (alef/ya/ta-marbuta, diacritics), no stemming.
+- Arabic: normalization (alef/ya/ta-marbuta, diacritics). Exact search does not stem, so phrases and names match as written; `stem:` is the opt-in that does (light Arabic stemmer, English plurals).
 - NEAR across title and body counts per field, not across them.
 - Ingest respects robots.txt; set `USER_AGENT` env with a contact URL.
 - Adding sources: edit `sources.yaml` (`kind: rss` or `sitemap` incl. Google News sitemaps).

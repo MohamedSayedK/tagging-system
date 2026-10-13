@@ -29,6 +29,20 @@ A broadcast newsroom running-order sheet for an analyst who reads hundreds of Ar
 
 Strategy: Restrained. Neutrals plus one accent.
 
+### Query syntax colours
+
+Used only inside query text (editor and the topic header), never elsewhere. Tokens `--syn-*` in `styles.css`, each with a light and a dark value, all AA on the field background. Colour is never the only cue: operators are bold, unbalanced brackets get a wavy underline.
+
+| Token | Meaning |
+|-------|---------|
+| `--syn-bool` | `AND`, `OR` (also nesting level 3 brackets) |
+| `--syn-not` | `NOT` |
+| `--syn-prox` | `NEAR/n`, `PRE/n` |
+| `--syn-field` | `title:`, `sourcetype:` ... and date ranges |
+| `--syn-phrase` | `"quoted phrases"` |
+| `--syn-d1`, `--syn-d2` | brackets at nesting level 1 and 2 (level 0 is ink; the cycle repeats every four levels) |
+| `--syn-match` | background of the bracket pair next to the caret |
+
 ## Dark theme (night reading)
 Same system, same single blue, different ground: a deep blue-black sheet `#0f141b` / `#161d27`, off-white text `#e8edf3` (never pure white), muted `#aab5c4`, accent blue lifted to `#7aa7ff` for text and focus while the primary button stays `#2f6fe8` with white text. Selected pills invert (light fill, dark text via `--on-ink`). Chart bars `#5b8def`, weekend `#6b7a90`, busiest `#a9c6ff`; highlight `#5c4a12`; status colours lighten (`--ok #6fd69a`, `--err #ff8a7a`).
 Chosen with the Light / Dark / Auto switch in the top bar (Auto follows the system setting); saved in `localStorage` (`tagging.theme`) and applied before first paint from `web/index.html`. Dark tokens live twice in `styles.css` (system preference and `[data-theme="dark"]`): change both.
