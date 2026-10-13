@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -284,7 +284,6 @@ describe("filters panel", () => {
     render(<App />);
     await user.click(await screen.findByRole("button", { name: "T" }));
     await screen.findByRole("heading", { name: "25 results" });
-    await user.click(screen.getByRole("button", { name: "Filters" }));
     await user.click(screen.getByRole("button", { name: "Domain" }));
     api.failNext(/GET \/topics\/1\/facets\/domain/, { status: 500, message: "Facet query failed" });
 

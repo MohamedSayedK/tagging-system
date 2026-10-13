@@ -41,7 +41,6 @@ const open = async (now = NOW) => {
 };
 const bar = () => within(screen.getByRole("region", { name: "Filter bar" }));
 const chooseDomain = async (user: ReturnType<typeof userEvent.setup>, label: string) => {
-  await user.click(screen.getByRole("button", { name: "Filters" }));
   await user.click(screen.getByRole("button", { name: "Domain" }));
   await user.click(within(screen.getByRole("group", { name: "Domain" })).getByRole("checkbox", { name: label }));
 };

@@ -12,9 +12,10 @@ function savedType(): ChartType {
   }
 }
 
-const W = 760;
-const H = 230;
-const PAD = { top: 26, bottom: 40, left: 38, right: 12 };
+// Drawn at the width of the column it sits in (beside the results), so text keeps its size.
+const W = 340;
+const H = 220;
+const PAD = { top: 26, bottom: 40, left: 30, right: 8 };
 
 /** A round ceiling and step so the gridlines read as 0 / 10 / 20 / 30, never 0 / 7 / 14. */
 function niceScale(max: number): { top: number; step: number } {

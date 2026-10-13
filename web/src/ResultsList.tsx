@@ -38,69 +38,73 @@ function byDay(results: Result[], ranked: boolean): { day: string; items: Result
 
 const RANKED = "ranked";
 
+// Arabic text is set larger than Latin: a script test on the text itself, not on the outlet's language setting.
+const arabic = (s: string) => /[\u0600-\u06FF]/.test(s);
+
 export function ResultsList({ total, results, density, now, toolbar, ranked = false, explain }: { total: number; results: Result[]; density: Density; now: Date; toolbar?: ReactNode; ranked?: boolean; /** Loads the clause-by-clause reason one result matched; omitted where there is no topic to explain against. */ explain?: (articleId: string) => Promise<Explanation> }) {
   const [explained, setExplained] = useState<string | null>(null);
+  let position = 0; // the cutting number: where the clipping sits in the list, in the order the server gave
   return (
-    <section aria-label="Results" className="rundown">
-      <header className="rundown-head">
+    <section aria-label="Results" className="cuttings">
+      <header className="listhead">
         <h2>{total} results</h2>
         {toolbar}
       </header>
-      <div className="rundown-cols" aria-hidden="true">
-        <span>Time</span>
-        <span>Headline</span>
-        <span>Source</span>
-      </div>
       {byDay(results, ranked).map((g) => (
-        <section key={g.day} role="group" aria-label={g.day === RANKED ? "Best matches first" : dayLabel(g.day)} className="rundown-day">
-          <header className="rundown-day-head">
+        <section key={g.day} role="group" aria-label={g.day === RANKED ? "Best matches first" : dayLabel(g.day)} className="day">
+          <header className="dayhead">
             <span>{g.day === RANKED ? "Best matches first" : dayLabel(g.day)}</span>
             <span>{articlesCount(g.items.length)}</span>
           </header>
           <ul>
             {g.items.map((r) => {
               const isNew = now.getTime() - Date.parse(r.published) < NEW_WITHIN_MS && now.getTime() >= Date.parse(r.published);
+              position += 1;
               return (
-                <li key={r.id} className="rundown-row">
-                  <div className="rundown-time">
-                    {ranked && <span className="rundown-date">{dayLabel(r.published.slice(0, 10))}</span>}
-                    <time dateTime={r.published} data-testid="time">
-                      {timeLabel(r.published)}
-                    </time>
-                    {isNew && <span className="badge-new">New</span>}
-                  </div>
-                  <div className="rundown-main">
-                    <a href={r.url} dir="auto" target="_blank" rel="noreferrer" className="headline">
-                      {r.title}
-                      <OpenIcon />
-                    </a>
-                    {density === "comfortable" && r.highlight?.body?.[0] && (
-                      <p dir="auto" className="excerpt">
-                        <Highlighted html={r.highlight.body[0]} />
-                      </p>
-                    )}
-                    {explain && (
-                      <>
-                        <button
-                          type="button"
-                          className="link why-toggle"
-                          aria-expanded={explained === r.id}
-                          aria-label={`Why “${r.title}” matched`}
-                          onClick={() => setExplained(explained === r.id ? null : r.id)}
-                        >
-                          Why this matched
-                        </button>
-                        {explained === r.id && <WhyMatched key={r.id} load={() => explain(r.id)} />}
-                      </>
-                    )}
-                  </div>
-                  <div className="rundown-source">
-                    <strong dir="auto">{r.source}</strong>
-                    <span>{r.domain}</span>
-                    {(r.sourcecountry || r.lang) && (
-                      <span>{[r.sourcecountry && countryName(r.sourcecountry), r.lang && languageName(r.lang)].filter(Boolean).join(" · ")}</span>
-                    )}
-                  </div>
+                <li key={r.id}>
+                  <article className="cutting">
+                    <div className="slip">
+                      <b dir="auto">{r.source}</b>
+                      <span>{r.domain}</span>
+                      {r.sourcecountry && <span>{countryName(r.sourcecountry)}</span>}
+                      {r.lang && <span>{languageName(r.lang)}</span>}
+                      <span className="when">
+                        {ranked && <span className="when-date">{dayLabel(r.published.slice(0, 10))} · </span>}
+                        <time dateTime={r.published} data-testid="time">
+                          {timeLabel(r.published)}
+                        </time>
+                      </span>
+                      {isNew && <span className="new">New</span>}
+                      <span className="no">Cutting № {position}</span>
+                    </div>
+                    <div className="body">
+                      <h3>
+                        <a href={r.url} dir="auto" target="_blank" rel="noreferrer" className="headline">
+                          {r.title}
+                          <OpenIcon />
+                        </a>
+                      </h3>
+                      {density === "comfortable" && r.highlight?.body?.[0] && (
+                        <p dir="auto" className={arabic(r.highlight.body[0]) ? "excerpt ar" : "excerpt"}>
+                          <Highlighted html={r.highlight.body[0]} />
+                        </p>
+                      )}
+                      {explain && (
+                        <>
+                          <button
+                            type="button"
+                            className="link why-toggle"
+                            aria-expanded={explained === r.id}
+                            aria-label={`Why “${r.title}” matched`}
+                            onClick={() => setExplained(explained === r.id ? null : r.id)}
+                          >
+                            Why this matched
+                          </button>
+                          {explained === r.id && <WhyMatched key={r.id} load={() => explain(r.id)} />}
+                        </>
+                      )}
+                    </div>
+                  </article>
                 </li>
               );
             })}

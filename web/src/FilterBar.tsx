@@ -6,8 +6,6 @@ import { facetValueLabel } from "./names";
 import { SavedFilter } from "./savedFilters";
 
 export function FilterBar(props: {
-  panelOpen: boolean;
-  onTogglePanel: () => void;
   facets: Facets;
   onRemove: (facet: FacetName, value: string) => void;
   onClearAll: () => void;
@@ -22,7 +20,7 @@ export function FilterBar(props: {
   onApply: (s: SavedFilter) => void;
   onDeleteSaved: (id: string) => void;
 }) {
-  const { panelOpen, onTogglePanel, facets, onRemove, onClearAll, from, to, onRange, now, dedupe, onDedupe, saved, onSave, onApply, onDeleteSaved } = props;
+  const { facets, onRemove, onClearAll, from, to, onRange, now, dedupe, onDedupe, saved, onSave, onApply, onDeleteSaved } = props;
   const current = activePreset(from, to, now);
   const canSave = hasActiveFacets(facets) || !!from || !!to || dedupe;
   const [naming, setNaming] = useState(false);
@@ -36,10 +34,6 @@ export function FilterBar(props: {
 
   return (
     <section className="filter-bar" aria-label="Filter bar">
-      <button type="button" className="filters-toggle" onClick={onTogglePanel} aria-expanded={panelOpen}>
-        {panelOpen ? "Close Filters" : "Filters"}
-      </button>
-
       <div className="active-filters">
         {hasActiveFacets(facets) ? (
           <>

@@ -56,20 +56,12 @@ Chosen with the Light / Dark / Auto switch in the masthead (Auto follows the sys
 - Query text and code: system monospace, 14px.
 - Measure: excerpts max 72ch.
 ## Layout
-- Shell: 300px rail (topics, then filters when opened) + fluid main, max 1500px; below 960px the rail stacks on top.
-- Cuttings: each result is a slip-like card, `78px | 1fr | 220px` (time + New stamp | headline + excerpt | source/domain/country·language); inside a narrow main (<760px container) the source drops under the headline. Day groups have a ruled uppercase header; the list header has a double rule.
-- Spacing rhythm: 4/8/12/16/20/24/28; rows 18px vertical padding, cards 3-4px radius, one border and one soft shadow per card.
-
-## Components
-- **Primary button**: solid stamp red, white text, 4px radius, a 2px hard underside like a rubber stamp. Only: New topic, Save topic.
-- **Segmented control**: ink fill for the pressed item (date presets, density).
-- **Chip**: red-wash rectangle (4px radius, hairline border) with a drawn close icon (24px target).
-- **Day header**: sticky, wash background, day label left, article count right.
-- **Cutting**: time (+ a red, slightly tilted "New" stamp within the last hour), headline link with open icon, excerpt with `mark`, source column.
-- **Chart**: Bars and Trend views (a segmented toggle in the caption; same labels, hover sentence and click-to-narrow in both; trend is a 2.5px line over a 12% red area with ringed points, the busiest point filled). Caption sentence (total, busiest, average), labelled y-axis on round steps, weekday letters (Fri/Sat greyed), dashed amber average line with label on the quieter side, busiest bar darkest and labelled, hover/focus sentence "Sat 10 Oct · 343 articles · 1,143% above average"; bars are buttons (click = filter to that bucket). Buckets are days up to 45 days, weeks to 400, months beyond (server decides).
-- **Topic colour**: an optional label colour per topic (teams give colours their own meaning), picked from a nine-colour named palette plus None, or freely with the rainbow **Custom color** button (popover: hex field, saturation/brightness square, hue slider, predefined colours; applies live, Escape or an outside click closes); shown as a dot in the topic list and before the topic's name, and spoken as "Color: Blue". The app's own blue stays the only UI accent: topic colours label topics, they never recolour controls or the chart.
-- **Dialog**: alertdialog, focus on the safe choice, danger button only for the destructive action.
-
+- Masthead (`.mast`): the page's one dark band. Row 1: logo with a small caps tagline, the section buttons (Topics, Sources, Registry), the Light / Dark / Auto switch, then the stamped **New topic** button. Row 2 (Topics only): the topics as **folder tabs** (`.folders`); the open topic's tab takes the page colour so it joins the page below.
+- Slip bar (`.filter-bar`): date range buttons, From / To, active filter chips, Clear all filters, saved filter sets, duplicates toggle.
+- Page (`.wrap`): max 1320px, `minmax(0,1fr) | 360px`, gap 40px; below 1000px the side column stacks under the results. Main column: topic title (40px serif), the query line (clamped to a few lines with "Show the whole query"), Edit / Delete topic, the list header (a 3px double rule), then day groups and clippings. Side column (`.side`): a box with the chart, then a box "Narrow the pile" with the filters as collapsed `+` sections.
+- Clipping (`.cutting`): a slip row (source, domain, place, language, time, a tilted red **New** stamp, `Cutting № n` at the right), a dashed rule, then the serif headline (27px, Arabic 32px), the excerpt (18px, Arabic 23px), and Why this matched. One border and one soft shadow per card, 3px radius.
+- Day header: uppercase 13px with a hairline rule and the day's count at the right; the list header has a double rule.
+- Spacing rhythm: 4/8/12/16/20/24/28; cards 14px apart, 4px radius on controls.
 ## Sources page
 A health view, not a data dump: a one-line count, a **Needs attention** region (failing sources with reason and next retry) when anything fails, a search box and All / Failing / Healthy / Waiting filter with counts, then a five-column table (Source, Status, Coverage, Schedule, Last run). Status is always a labelled badge (dot + words), failing rows sort first, and green is used for this status only.
 

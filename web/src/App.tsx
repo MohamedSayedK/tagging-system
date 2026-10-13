@@ -53,11 +53,11 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
   };
   const [dedupe, setDedupe] = useState(false);
   const [view, setView] = useState<"topics" | "sources" | "registry">("topics");
-  const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState(true); // the topic form: open for a new topic, folded while reading one
   const [density, setDensityState] = useState<Density>(savedDensity);
   const [theme, setTheme] = useTheme();
   // The range that was active before a chart bar narrowed the view to one day; null when not drilled in.
+  const [queryOpen, setQueryOpen] = useState(false); // a long saved query is shown in full only when asked for
   const [drilledFrom, setDrilledFrom] = useState<{ from: string; to: string } | null>(null);
   const [refresh, setRefresh] = useState(0); // bumped when a saved edit may change the results
   const [saving, setSaving] = useState(false);
@@ -208,28 +208,69 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
     </div>
   );
 
+  const topicTabs = (
+    <nav className="folders" aria-label="Topics">
+      {topicsLoad.status === "loading" && topics.length === 0 && <Loading>Loading topics…</Loading>}
+      {topicsLoad.status === "error" && <ErrorNotice title="Couldn't load the topics." reason={topicsLoad.error} onRetry={topicsLoad.retry} />}
+      {topics.map((t) => (
+        <Fragment key={t.id}>
+          <button
+            type="button"
+            dir="auto"
+            className="folder"
+            aria-pressed={t.id === selectedId}
+            aria-describedby={t.color ? `topic-color-${t.id}` : undefined}
+            onClick={() => select(t)}
+          >
+            {t.color && <span className="topic-dot" style={{ background: t.color }} aria-hidden="true" />}
+            {t.name}
+          </button>
+          {t.color && (
+            <span id={`topic-color-${t.id}`} className="visually-hidden">
+              Color: {colorName(t.color)}
+            </span>
+          )}
+        </Fragment>
+      ))}
+    </nav>
+  );
+
+  const LONG_QUERY = 220;
+  const longQuery = !!selectedTopic && (selectedTopic.query.length > LONG_QUERY || (selectedTopic.exclude ?? "").length > LONG_QUERY);
+
   return (
     <>
-      <header className="app-nav">
-        <span className="brand">
-          Tagging <b>System</b>
-        </span>
-        <button type="button" aria-pressed={view === "topics"} onClick={() => setView("topics")}>
-          Topics
-        </button>
-        <button type="button" aria-pressed={view === "sources"} onClick={() => setView("sources")}>
-          Sources
-        </button>
-        <button type="button" aria-pressed={view === "registry"} onClick={() => setView("registry")}>
-          Registry
-        </button>
-        <div className="segmented theme-toggle" role="group" aria-label="Theme">
-          {(["light", "dark", "auto"] as Theme[]).map((k) => (
-            <button key={k} type="button" aria-pressed={theme === k} onClick={() => setTheme(k)}>
-              {k === "light" ? "Light" : k === "dark" ? "Dark" : "Auto"}
+      <header className="mast">
+        <div className="mast-row">
+          <span className="logo">
+            Tagging System <small>Press cuttings bureau</small>
+          </span>
+          <div className="sections" role="group" aria-label="Sections">
+            <button type="button" aria-pressed={view === "topics"} onClick={() => setView("topics")}>
+              Topics
             </button>
-          ))}
+            <button type="button" aria-pressed={view === "sources"} onClick={() => setView("sources")}>
+              Sources
+            </button>
+            <button type="button" aria-pressed={view === "registry"} onClick={() => setView("registry")}>
+              Registry
+            </button>
+          </div>
+          <div className="grow" />
+          <div className="segmented theme-toggle" role="group" aria-label="Theme">
+            {(["light", "dark", "auto"] as Theme[]).map((k) => (
+              <button key={k} type="button" aria-pressed={theme === k} onClick={() => setTheme(k)}>
+                {k === "light" ? "Light" : k === "dark" ? "Dark" : "Auto"}
+              </button>
+            ))}
+          </div>
+          {view === "topics" && (
+            <button type="button" className="primary stamp-btn" onClick={startNew}>
+              New topic
+            </button>
+          )}
         </div>
+        {view === "topics" && topicTabs}
       </header>
       {import.meta.env.MODE === "demo" && (
         <aside role="note" aria-label="About this demo" className="demo-note">
@@ -264,8 +305,6 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
       ) : (
         <>
           <FilterBar
-            panelOpen={panelOpen}
-            onTogglePanel={() => setPanelOpen((o) => !o)}
             facets={facets}
             onRemove={toggleFacet}
             onClearAll={() => setFacets(NO_FACETS)}
@@ -291,51 +330,11 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
             }}
             onDeleteSaved={(id) => changeSaved(savedFilters.filter((s) => s.id !== id))}
           />
-          <div className="shell">
-            <div className="rail">
-              <nav aria-label="Topics">
-                <button type="button" className="primary" onClick={startNew}>
-                  New topic
-                </button>
-                {topicsLoad.status === "loading" && topics.length === 0 && <Loading>Loading topics…</Loading>}
-                {topicsLoad.status === "error" && (
-                  <ErrorNotice title="Couldn't load the topics." reason={topicsLoad.error} onRetry={topicsLoad.retry} />
-                )}
-                {topics.map((t) => (
-                  <Fragment key={t.id}>
-                    <button
-                      type="button"
-                      dir="auto"
-                      aria-pressed={t.id === selectedId}
-                      aria-describedby={t.color ? `topic-color-${t.id}` : undefined}
-                      onClick={() => select(t)}
-                    >
-                      {t.color && <span className="topic-dot" style={{ background: t.color }} aria-hidden="true" />}
-                      {t.name}
-                    </button>
-                    {t.color && (
-                      <span id={`topic-color-${t.id}`} className="visually-hidden">
-                        Color: {colorName(t.color)}
-                      </span>
-                    )}
-                  </Fragment>                ))}
-              </nav>
-              {panelOpen && (
-                <FilterPanel
-                  aggregations={loaded?.aggregations ?? null}
-                  selected={facets}
-                  onToggle={toggleFacet}
-                  loadFacet={(facet, q, size) =>
-                    selectedId ? topicFacet(selectedId, facet, { q, size, dedupe, ...range(from, to), ...facets }) : Promise.resolve([])
-                  }
-                  scopeKey={JSON.stringify([selectedId, from, to, facets, refresh])}
-                />
-              )}
-            </div>
+          <div className="wrap">
             <main>
               <section aria-label="Topic editor" className="topic">
                 <header className="topic-head">
-                  <div>
+                  <div className="topic-heading">
                     <div className="topic-title">
                       {selectedTopic?.color && (
                         <span className="topic-dot big" data-testid="topic-color" data-color={selectedTopic.color} style={{ background: selectedTopic.color }} aria-hidden="true" />
@@ -343,13 +342,19 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
                       <h1 dir="auto">{selectedTopic?.name ?? "New topic"}</h1>
                     </div>
                     {selectedTopic && (
-                      <div className="topic-query">
+                      <div className="topic-query" data-open={queryOpen || !longQuery}>
+                        <span className="query-label">Query</span>
                         <QueryView query={selectedTopic.query} />
                         {selectedTopic.exclude && (
                           <div className="topic-exclude">
                             Excluding
                             <QueryView query={selectedTopic.exclude} />
                           </div>
+                        )}
+                        {longQuery && (
+                          <button type="button" className="link query-more" aria-expanded={queryOpen} onClick={() => setQueryOpen((o) => !o)}>
+                            {queryOpen ? "Show less of the query" : "Show the whole query"}
+                          </button>
                         )}
                       </div>
                     )}
@@ -399,15 +404,6 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
                       Back to full view
                     </button>
                   )}
-                  <ResultsChart
-                    buckets={loaded.aggregations?.overTime ?? []}
-                    interval={loaded.aggregations?.interval ?? "day"}
-                    onSelectRange={(f, t) => {
-                      setDrilledFrom((prev) => prev ?? { from, to });
-                      setFrom(f);
-                      setTo(t);
-                    }}
-                  />
                   <ResultsList total={loaded.total} results={loaded.results} density={density} now={now()} toolbar={toolbar} ranked={sort === "relevance"} explain={selectedId ? (id) => explainResult(selectedId, id) : undefined} />
                   {moreError && <ErrorNotice title={moreError} />}
                   {loaded.results.length < loaded.total && (
@@ -418,6 +414,34 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
                 </div>
               )}
             </main>
+            <aside className="side" aria-label="Beside the results">
+              {loaded && resultsLoad.status !== "error" && (
+                <section className="box">
+                  <h2>Results over time</h2>
+                  <ResultsChart
+                    buckets={loaded.aggregations?.overTime ?? []}
+                    interval={loaded.aggregations?.interval ?? "day"}
+                    onSelectRange={(f, t) => {
+                      setDrilledFrom((prev) => prev ?? { from, to });
+                      setFrom(f);
+                      setTo(t);
+                    }}
+                  />
+                </section>
+              )}
+              {selectedId && (
+                <section className="box">
+                  <h2>Narrow the pile</h2>
+                  <FilterPanel
+                    aggregations={loaded?.aggregations ?? null}
+                    selected={facets}
+                    onToggle={toggleFacet}
+                    loadFacet={(facet, q, size) => topicFacet(selectedId, facet, { q, size, dedupe, ...range(from, to), ...facets })}
+                    scopeKey={JSON.stringify([selectedId, from, to, facets, refresh])}
+                  />
+                </section>
+              )}
+            </aside>
           </div>
         </>
       )}

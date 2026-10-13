@@ -555,24 +555,20 @@ describe("filter bar and filters panel", () => {
     await screen.findByRole("heading", { name: "4 results" });
     return user;
   };
-  const openPanel = (user: ReturnType<typeof userEvent.setup>) => user.click(screen.getByRole("button", { name: "Filters" }));
+  // The filters sit beside the results and are always there once a topic is open: nothing to press.
+  const openPanel = (_user: ReturnType<typeof userEvent.setup>) => Promise.resolve();
   const expand = async (user: ReturnType<typeof userEvent.setup>, section: string) => {
     await user.click(screen.getByRole("button", { name: section }));
     return within(screen.getByRole("group", { name: section }));
   };
 
-  it("says there are no active filters, and the panel is closed until Filters is pressed", async () => {
+  it("says there are no active filters, and shows the filters beside the results with nothing to open", async () => {
     seed();
-    const user = await open();
+    await open();
 
     expect(screen.getByText("No active filters.")).toBeInTheDocument();
-    expect(screen.queryByRole("complementary", { name: "Filters" })).not.toBeInTheDocument();
-
-    await openPanel(user);
     expect(screen.getByRole("complementary", { name: "Filters" })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Close Filters" }));
-    expect(screen.queryByRole("complementary", { name: "Filters" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Filters" })).not.toBeInTheDocument();
   });
 
   it("has collapsed sections for source type, country, language and domain, with counts", async () => {
