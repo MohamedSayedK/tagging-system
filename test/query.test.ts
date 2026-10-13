@@ -55,6 +55,38 @@ describe("parser", () => {
     expect(parse("https://x.com/a")).toEqual({ type: "term", value: "https://x.com/a" });
   });
 
+  it("harvestDate:[a TO b] and publishedDate:[a TO b] are date ranges; * leaves a side open", () => {
+    expect(parse("harvestDate:[2026-10-01 TO 2026-10-12]")).toEqual({ type: "range", field: "fetched", from: "2026-10-01", to: "2026-10-12" });
+    expect(parse("publishedDate:[2026-10-01 TO *]")).toEqual({ type: "range", field: "published", from: "2026-10-01" });
+    expect(parse("budget AND publisheddate:[* TO 2026-10-12T10:00:00Z]")).toMatchObject({
+      type: "and",
+      children: [{ type: "term" }, { type: "range", field: "published", to: "2026-10-12T10:00:00Z" }],
+    });
+  });
+
+  it("a date range fails loudly when it is malformed", () => {
+    expect(() => parse("harvestDate:[2026-10-01]")).toThrow(/at position 0/);
+    expect(() => parse("harvestDate:[yesterday TO today]")).toThrow(/yesterday/);
+    expect(() => parse("harvestDate:[2026-13-45 TO 2026-14-01]")).toThrow(QuerySyntaxError);
+    expect(() => parse("harvestDate:[2026-10-12 TO 2026-10-01]")).toThrow(/before/);
+    expect(() => parse("harvestDate:[* TO *]")).toThrow(QuerySyntaxError);
+  });
+
+  it("term^n and phrase^n boost how strongly a match counts in the relevance order", () => {
+    expect(parse("budget^2")).toEqual({ type: "term", value: "budget", boost: 2 });
+    expect(parse('"حساب المواطن"^1.5')).toEqual({ type: "phrase", value: "حساب المواطن", boost: 1.5 });
+    expect(parse('"john kennedy"~2^3')).toEqual({ type: "phrase", value: "john kennedy", slop: 2, boost: 3 });
+    expect(parse("title:budget^3")).toMatchObject({ type: "field", field: "title", child: { type: "term", value: "budget", boost: 3 } });
+    expect(parse("a^2 OR b")).toMatchObject({ type: "or", children: [{ boost: 2 }, { type: "term", value: "b" }] });
+  });
+
+  it("a boost that is not a positive number, or sits on a group, fails loudly with a position", () => {
+    expect(() => parse("a^")).toThrow(QuerySyntaxError);
+    expect(() => parse("a^x")).toThrow(/position 0/);
+    expect(() => parse("a^0")).toThrow(QuerySyntaxError);
+    expect(() => parse("(a OR b)^2")).toThrow(/term or a phrase/);
+    expect(() => parse("a ^2")).toThrow(/term or a phrase/);
+  });
   it("rejects bad syntax", () => {
     expect(() => parse("(a OR b")).toThrow(QuerySyntaxError);
     expect(() => parse("a OR")).toThrow(QuerySyntaxError);
@@ -91,6 +123,42 @@ describe("compile", () => {
     expect(compileQuery("byline:Jadaan")).toEqual(compileQuery("author:Jadaan"));
   });
 
+  it("a date range becomes a range filter on the harvest (fetched) or publication date, whole days included", () => {
+    expect(compileQuery("harvestDate:[2026-10-01 TO 2026-10-12]")).toEqual({
+      range: { fetched: { gte: "2026-10-01||/d", lte: "2026-10-12||/d" } },
+    });
+    expect(compileQuery("publishedDate:[2026-10-01T08:30:00Z TO *]")).toEqual({
+      range: { published: { gte: "2026-10-01T08:30:00Z" } },
+    });
+  });
+
+  it("a date range cannot sit inside NEAR", () => {
+    expect(() => compileQuery("a NEAR/3 harvestDate:[2026-10-01 TO 2026-10-12]")).toThrow(QuerySyntaxError);
+  });
+
+  it("a boost goes onto the clause it belongs to", () => {
+    expect(compileQuery("title:budget^3")).toEqual({ match_phrase: { title: { query: "budget", boost: 3 } } });
+    expect(compileQuery('body:"a b"~2^2')).toEqual({ match_phrase: { body: { query: "a b", slop: 2, boost: 2 } } });
+    expect(compileQuery("title:bud*^2")).toEqual({ wildcard: { title: { value: "bud*", boost: 2 } } });
+    expect(JSON.stringify(compileQuery("budget^2"))).toContain('"boost":2');
+  });
+
+  it("a boost inside NEAR is refused: intervals have no weight", () => {
+    expect(() => compileQuery("a^2 NEAR/3 b")).toThrow(/boost/i);
+  });
+  it("stem:x searches the stemmed copy of the text, with phrases, groups and NEAR", () => {
+    expect(compileQuery("stem:budget")).toEqual({
+      bool: { should: [{ match_phrase: { "title.stem": "budget" } }, { match_phrase: { "body.stem": "budget" } }], minimum_should_match: 1 },
+    });
+    expect(JSON.stringify(compileQuery('stem:("a b" OR c)'))).toContain('"body.stem"');
+    const near = JSON.stringify(compileQuery("stem:(a NEAR/3 b)"));
+    expect(near).toContain('"intervals":{"body.stem"');
+    expect(near).toContain('"max_gaps":3');
+  });
+
+  it("stem: refuses wildcards, which have no stem to match", () => {
+    expect(() => compileQuery("stem:budg*")).toThrow(/wildcard/i);
+  });
   it("NOT goes to must_not", () => {
     expect(compileQuery("a NOT b")).toMatchObject({ bool: { must: [{}], must_not: [{}] } });
   });

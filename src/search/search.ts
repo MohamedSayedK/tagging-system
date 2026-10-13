@@ -6,7 +6,7 @@ export interface SearchParams {
   exclude?: string;
   from?: string; // ISO date
   to?: string;
-  sort?: "recent" | "oldest";
+  sort?: "recent" | "oldest" | "relevance";
   offset?: number;
   size?: number;
   interval?: "auto" | "hour" | "day" | "week" | "month"; // auto (default) picks day/week/month from the span of matching articles
@@ -98,6 +98,12 @@ export function bucketFor(spanDays: number): Bucket {
   return spanDays <= 45 ? "day" : spanDays <= 400 ? "week" : "month";
 }
 
+/** Exact-match highlights win; when only the stemmed field matched, its highlights are shown as the title/body ones. */
+function withStemHighlights(h: Record<string, string[]>) {
+  const { "title.stem": titleStem, "body.stem": bodyStem, ...rest } = h;
+  return { ...rest, ...(!rest.title && titleStem && { title: titleStem }), ...(!rest.body && bodyStem && { body: bodyStem }) };
+}
+
 export async function search(p: SearchParams) {
   const { must, must_not, filter, filtersExcept } = scope(p);
   const withFilters = (filters: object[], aggs: object) => ({ filter: { bool: { filter: filters } }, aggs });
@@ -131,10 +137,20 @@ export async function search(p: SearchParams) {
       track_total_hits: true,
       from: p.offset ?? 0,
       size: Math.min(p.size ?? 25, 100),
-      sort: [{ published: p.sort === "oldest" ? "asc" : "desc" }],
+      // `relevance`: best match first (term^n boosts count), newest first among equal scores.
+      sort: p.sort === "relevance" ? [{ _score: "desc" }, { published: "desc" }] : [{ published: p.sort === "oldest" ? "asc" : "desc" }],
       query: { bool: { must, must_not, filter } },
       post_filter: { bool: { filter: filtersExcept() } },
-      highlight: { fields: { title: {}, body: { fragment_size: 200, number_of_fragments: 1 } } },
+      // The `.stem` fields are listed too: a `stem:` query matches those, and highlighting through them marks the
+      // words as written in the article (their stemmed form is only what the index compared).
+      highlight: {
+        fields: {
+          title: {},
+          body: { fragment_size: 200, number_of_fragments: 1 },
+          "title.stem": {},
+          "body.stem": { fragment_size: 200, number_of_fragments: 1 },
+        },
+      },
       aggs: {
         over_time: withFilters(filtersExcept(), {
           h: { date_histogram: { field: "published", calendar_interval: interval } },
@@ -152,7 +168,7 @@ export async function search(p: SearchParams) {
     results: body.hits.hits.map((h: any) => ({
       id: h._id,
       ...h._source,
-      highlight: h.highlight,
+      highlight: h.highlight && withStemHighlights(h.highlight),
     })),
     aggregations: {
       interval,

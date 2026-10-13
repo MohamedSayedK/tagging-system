@@ -7,7 +7,7 @@ const { search } = await import("../src/search/search.js");
 
 const docs = [
   { id: "1", title: "حساب المواطن يعلن موعد الدعم", body: "أعلن برنامج حساب المواطن عن موعد صرف الدعم للمستفيدين في السعودية", source: "A", domain: "a.sa", sourcetype: "onlinenews_newspaper", sourcecountry: "sa", lang: "ar", published: "2026-10-09T10:00:00Z" },
-  { id: "2", title: "Citizen account payment date", body: "The citizen account programme announced the support payment date for beneficiaries", source: "B", domain: "b.com", sourcetype: "blog", sourcecountry: "us", lang: "en", published: "2026-10-10T10:00:00Z" },
+  { id: "2", title: "Citizen account payment date", body: "The citizen account programme announced the support payment date for beneficiaries", source: "B", domain: "b.com", sourcetype: "blog", sourcecountry: "us", lang: "en", published: "2026-10-10T10:00:00Z", fetched: "2026-10-12T08:00:00Z" },
   { id: "3", title: "Weather", body: "citizen walked far away from the account of a long story about the weather today", source: "B", domain: "b.com", sourcetype: "blog", sourcecountry: "us", lang: "en", published: "2026-10-10T11:00:00Z" },
 ];
 
@@ -37,7 +37,33 @@ describe("search against OpenSearch", () => {
     expect(await ids("citizen", { exclude: "weather" })).toEqual(["2"]);
     expect(await ids("citizen OR حساب", { from: "2026-10-10T00:00:00Z" })).toEqual(["2", "3"]);
   });
-  describe("facet filters", () => {
+  it("stem: finds other forms of a word that the exact search does not", async () => {
+    // body 1 has "للمستفيدين" (for the beneficiaries); body 2 has "beneficiaries"
+    expect(await ids("المستفيد")).toEqual([]);
+    expect(await ids("stem:المستفيد")).toEqual(["1"]);
+    expect(await ids("beneficiary")).toEqual([]);
+    expect(await ids("stem:beneficiary")).toEqual(["2"]);
+    expect(await ids("stem:beneficiaries AND sourcetype:blog")).toEqual(["2"]);
+  });  it("stem: highlights the words as written in the article, not the stem", async () => {
+    const [hit] = (await search({ query: "stem:المستفيد" })).results as any[];
+    expect(hit.highlight.body[0]).toContain("<em>للمستفيدين</em>");
+
+    const [english] = (await search({ query: "stem:beneficiary" })).results as any[];
+    expect(english.highlight.body[0]).toContain("<em>beneficiaries</em>");
+  });
+  it("date ranges in the query: whole days for publishedDate, harvestDate on the fetched time", async () => {
+    const all = "citizen OR حساب";
+    expect(await ids(`(${all}) AND publishedDate:[2026-10-10 TO 2026-10-10]`)).toEqual(["2", "3"]);
+    expect(await ids(`(${all}) AND publishedDate:[2026-10-10T10:30:00Z TO *]`)).toEqual(["3"]);
+    expect(await ids(`(${all}) AND harvestDate:[2026-10-12 TO *]`)).toEqual(["2"]);
+    expect(await ids(`(${all}) AND harvestDate:[* TO 2026-10-11]`)).toEqual([]);
+  });
+  it("relevance sort puts boosted matches first; date sorts ignore the boost", async () => {
+    const order = async (query: string, sort: string) => (await search({ query, sort: sort as any })).results.map((r: any) => r.id);
+    expect(await order("programme^10 OR weather", "relevance")).toEqual(["2", "3"]);
+    expect(await order("programme OR weather^10", "relevance")).toEqual(["3", "2"]);
+    expect(await order("programme^10 OR weather", "recent")).toEqual(["3", "2"]);
+  });  describe("facet filters", () => {
     const all = "citizen OR حساب";
     const counts = (b: { key: string; count: number }[]) => Object.fromEntries(b.map((x) => [x.key, x.count]));
 

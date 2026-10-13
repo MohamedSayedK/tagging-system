@@ -1,11 +1,13 @@
 export type Node =
-  | { type: "term"; value: string }
-  | { type: "phrase"; value: string; slop?: number }
+  | { type: "term"; value: string; boost?: number }
+  | { type: "phrase"; value: string; slop?: number; boost?: number }
   | { type: "and"; children: Node[] }
   | { type: "or"; children: Node[] }
   | { type: "not"; child: Node }
   | { type: "near"; children: Node[]; distance: number; ordered?: boolean }
-  | { type: "field"; field: string; child: Node };
+  | { type: "field"; field: string; child: Node }
+  // `harvestDate:[a TO b]`: a date range on the stored `fetched` or `published` date; an absent side is open.
+  | { type: "range"; field: "fetched" | "published"; from?: string; to?: string };
 
 export class QuerySyntaxError extends Error {
   constructor(message: string, public pos?: number) {

@@ -23,7 +23,7 @@ const res = await client.search({
   body: {
     size: MAX_ARTICLES,
     sort: [{ published: "desc" }],
-    _source: ["url", "title", "body", "source", "domain", "sourcetype", "sourcecountry", "lang", "published"],
+    _source: ["url", "title", "body", "source", "domain", "sourcetype", "sourcecountry", "lang", "published", "fetched"],
     query: { match_all: {} },
   } as never,
 });
@@ -41,6 +41,7 @@ const fullArticles = (res.body as any).hits.hits
     sourcecountry: h._source.sourcecountry as string | undefined,
     lang: h._source.lang as string | undefined,
     published: h._source.published as string,
+    fetched: h._source.fetched as string | undefined,
   }));
 
 const runs = new Map((await openSearchStore().load()).map((r) => [r.name, r]));

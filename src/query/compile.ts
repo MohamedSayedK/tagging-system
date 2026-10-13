@@ -25,7 +25,7 @@ export function countryCode(value: string): string {
   return code;
 }
 
-const FIELD_MAP: Record<string, { fields: string[]; keyword: boolean; normalize?: (v: string) => string }> = {
+const FIELD_MAP: Record<string, Ctx> = {
   text: { fields: TEXT_FIELDS, keyword: false },
   title: { fields: ["title"], keyword: false },
   body: { fields: ["body"], keyword: false },
@@ -36,9 +36,11 @@ const FIELD_MAP: Record<string, { fields: string[]; keyword: boolean; normalize?
   lang: { fields: ["lang"], keyword: true },
   domain: { fields: ["domain"], keyword: true },
   source: { fields: ["source"], keyword: true },
+  // The stemmed copies of title and body (see the index mapping): other forms of the same word match.
+  stem: { fields: ["title.stem", "body.stem"], keyword: false, stem: true },
 };
 
-interface Ctx { fields: string[]; keyword: boolean; normalize?: (v: string) => string }
+interface Ctx { fields: string[]; keyword: boolean; normalize?: (v: string) => string; stem?: boolean }
 const DEFAULT_CTX: Ctx = { fields: TEXT_FIELDS, keyword: false };
 
 const hasWildcard = (s: string) => /[*?]/.test(s);
@@ -48,17 +50,29 @@ function compileNode(n: Node, ctx: Ctx): Dsl {
   switch (n.type) {
     case "term":
     case "phrase": {
+      if (ctx.stem && hasWildcard(n.value)) throw new QuerySyntaxError("Wildcards are not allowed with stem: a pattern has no stem to match");
       const v = ctx.normalize && !hasWildcard(n.value) ? ctx.normalize(n.value) : n.value;
+      const boost = n.boost === undefined ? {} : { boost: n.boost };
       if (ctx.keyword) {
         const value = v.toLowerCase();
-        return any(ctx.fields.map((f) => (hasWildcard(v) ? { wildcard: { [f]: { value } } } : { term: { [f]: value } })));
+        return any(
+          ctx.fields.map((f) =>
+            hasWildcard(v)
+              ? { wildcard: { [f]: { value, ...boost } } }
+              : { term: { [f]: n.boost === undefined ? value : { value, ...boost } } },
+          ),
+        );
       }
       const slop = n.type === "phrase" ? n.slop : undefined;
       return any(
         ctx.fields.map((f) =>
           n.type === "term" && hasWildcard(v)
-            ? { wildcard: { [f]: { value: v.toLowerCase() } } }
-            : { match_phrase: { [f]: slop === undefined ? v : { query: v, slop } } },
+            ? { wildcard: { [f]: { value: v.toLowerCase(), ...boost } } }
+            : {
+                match_phrase: {
+                  [f]: slop === undefined && n.boost === undefined ? v : { query: v, ...(slop !== undefined && { slop }), ...boost },
+                },
+              },
         ),
       );
     }
@@ -80,6 +94,11 @@ function compileNode(n: Node, ctx: Ctx): Dsl {
       if (!spec) throw new QuerySyntaxError(`Unknown field "${n.field}"`);
       return compileNode(n.child, spec);
     }
+    case "range": {
+      // A date without a time covers the whole day: `||/d` rounds the start down and the end up.
+      const edge = (d: string) => (d.includes("T") ? d : `${d}||/d`);
+      return { range: { [n.field]: { ...(n.from && { gte: edge(n.from) }), ...(n.to && { lte: edge(n.to) }) } } };
+    }
     case "near": {
       if (ctx.keyword) throw new QuerySyntaxError("NEAR is not allowed on keyword fields");
       return any(ctx.fields.map((f) => ({ intervals: { [f]: toInterval(n) } })));
@@ -90,6 +109,9 @@ function compileNode(n: Node, ctx: Ctx): Dsl {
 // NEAR operands become Elasticsearch/OpenSearch `intervals` rules, which are analyzed like normal text.
 // Only terms, phrases, OR groups and nested NEARs are valid operands.
 function toInterval(n: Node): Dsl {
+  if ((n.type === "term" || n.type === "phrase") && n.boost !== undefined) {
+    throw new QuerySyntaxError("A boost (^n) is not allowed inside NEAR/PRE: interval rules carry no weight");
+  }
   switch (n.type) {
     case "term":
       return hasWildcard(n.value)
