@@ -82,7 +82,7 @@ Open http://127.0.0.1:3000. Put a TLS-terminating reverse proxy in front before 
 | `a PRE/5 b` | like `NEAR/5` but `a` must come before `b` (Newsdesk's `PRE/n`) |
 | `START/20:budget`, `START/10:(a OR b)`, `START/5:"a b"` | the operand is in the headline or begins within the first n words of the body (n at least 1). Terms, phrases and OR groups only; not inside `title:`/`stem:` or `NEAR` |
 | `MULTIPLE/3:budget`, `MULTIPLE/2:(a OR b)` | at least n separate occurrences of the operand in the body (n from 2 to 10); the headline does not count. Same operand rules as `START` |
-| `a NEAR/8 b` | within 8 words, any order; operands: terms, phrases, OR groups, nested NEAR, and `term NOT (phrases)` (occurrences of the term outside those phrases) |
+| `a NEAR/8 b` | at most 8 words *between* a and b, any order, inside the headline or inside the body (never one in each: an article can match through its body while its headline has the words far apart). The number is required: `a NEAR b` is an error, not an AND; operands: terms, phrases, OR groups, nested NEAR, and `term NOT (phrases)` (occurrences of the term outside those phrases) |
 | `acc*`, `a?c` | wildcard (single terms) |
 | `title:x`, `body:x`, `author:x` | text fields; Newsdesk's `headline:`, `content:` and `byline:` are accepted too |
 | `sourcetype:BLOG`, `sourcecountry:sa` or `sourceCountry:"Saudi Arabia"`, `lang:ar`, `domain:bbc.com`, `authorshort:x`, `source:"Arab News"` | exact (case-insensitive); country accepts an English name or a two-letter code, unknown names are an error |

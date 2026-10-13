@@ -101,6 +101,25 @@ describe("parser", () => {
     expect(() => parse("START/5:")).toThrow(QuerySyntaxError);
     expect(() => parse("START/5: AND b")).toThrow(QuerySyntaxError);
   });
+  it("an operator written without its number is an error, not a word that turns the query into AND", () => {
+    // `a NEAR b` used to be read as the three terms a, NEAR and b, all required: NEAR silently became AND.
+    expect(() => parse("budget NEAR deficit")).toThrow(/NEAR needs a number.*NEAR\/5/);
+    expect(() => parse("budget PRE deficit")).toThrow(/PRE needs a number/);
+    expect(() => parse("budget NEAR/ deficit")).toThrow(/NEAR needs a number/);
+    expect(() => parse("budget NEAR/x deficit")).toThrow(/NEAR needs a number/);
+    expect(() => parse("START/5 budget")).toThrow(/START needs.*START\/5:/);
+    expect(() => parse("MULTIPLE:budget")).toThrow(/MULTIPLE needs/);
+    expect(() => parse("budget NEAR deficit")).toThrow(/at position 7/);
+  });
+
+  it("lower-case near, pre and start stay ordinary words: operators are upper case", () => {
+    expect(parse("near the border")).toMatchObject({ type: "and" });
+    expect(parse("start")).toEqual({ type: "term", value: "start" });
+    // START and MULTIPLE alone are ordinary words (the START treaty); only a half-written operator is refused
+    expect(parse("START treaty")).toMatchObject({ type: "and", children: [{ value: "START" }, { value: "treaty" }] });
+    expect(parse('"NEAR" east')).toMatchObject({ type: "and", children: [{ type: "phrase", value: "NEAR" }, { value: "east" }] });
+  });
+
   it("rejects bad syntax", () => {
     expect(() => parse("(a OR b")).toThrow(QuerySyntaxError);
     expect(() => parse("a OR")).toThrow(QuerySyntaxError);

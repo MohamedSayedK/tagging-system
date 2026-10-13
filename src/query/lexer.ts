@@ -117,6 +117,17 @@ export function lex(input: string): Token[] {
     if (raw === "AND") { out.push({ kind: "and", pos: start }); continue; }
     if (raw === "OR") { out.push({ kind: "or", pos: start }); continue; }
     if (raw === "NOT") { out.push({ kind: "not", pos: start }); continue; }
+    // An operator without its number is a typo, not a word: read as a word, `a NEAR b` silently became a AND NEAR
+    // AND b. A word that really is NEAR can be quoted.
+    const noNumber = /^(NEAR|PRE)(\/.*)?$/.exec(raw);
+    if (noNumber) {
+      throw new QuerySyntaxError(`${noNumber[1]} needs a number of words, as in ${noNumber[1]}/5 (put "${noNumber[1]}" in quotes to search for the word itself)`, start);
+    }
+    const halfLimit = /^(START|MULTIPLE)[\/:]/.exec(raw);
+    if (halfLimit && !LIMIT_PREFIX.test(raw)) {
+      const example = halfLimit[1] === "START" ? "START/5:budget" : "MULTIPLE/3:budget";
+      throw new QuerySyntaxError(`${halfLimit[1]} needs a number and a colon before the word it applies to, as in ${example}`, start);
+    }
     const limit = LIMIT_PREFIX.exec(raw);
     if (limit) {
       const n = Number(limit[2]);
