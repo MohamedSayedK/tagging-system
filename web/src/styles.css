@@ -1,42 +1,47 @@
-/* The Rundown: a broadcast newsroom running-order sheet.
-   One signal blue for every primary action; amber only for "new" and the average line. */
+/* Press Cuttings (theme B): a newspaper clipping desk. Cream ground, serif headlines, one stamp red for every
+   primary action, a yellow marker for matched words. Token names are kept from the earlier theme: `--blue*`
+   now holds the stamp red, `--amber*` the same red (new tags, the average line). */
 :root {
-  --paper: #fbfbf9;
-  --sheet: #ffffff;
-  --ink: #14202e;
-  --muted: #4a5666;
-  --faint: #5f6b7b;
-  --line: #dfe3e8;
-  --line-strong: #bcc4cf;
-  --wash: #f3f5f8;
-  --blue: #1d5fd6;
-  --blue-deep: #0f3f9c;
-  --blue-wash: #e8f0fd;
-  --amber: #f2b01e;
-  --amber-ink: #7a5200;
-  --amber-wash: #fff3cf;
-  --mark: #fde9a2;
-  --ok: #1b6b3a;
-  --ok-wash: #e6f4ec;
+  --paper: #f1ecde;
+  --sheet: #fbf8ef;
+  --ink: #1b1a17;
+  --muted: #55504a;
+  --faint: #625b51;
+  --line: #d8d0bd;
+  --line-strong: #b9ad93;
+  --wash: #e8e1ce;
+  --blue: #a8211a;
+  --blue-deep: #8f1a14;
+  --blue-wash: #f6e2de;
+  --amber: #a8211a;
+  --amber-ink: #a8211a;
+  --amber-wash: #f6e2de;
+  --mark: #ffe36e;
+  --ok: #2f5d50;
+  --ok-wash: #e3ece8;
   --err: #b42318;
   --err-wash: #fff1ef;
-  --bar: #4f86e8;
-  --bar-weekend: #8d9ab0;
-  --bar-peak: #123f9e;
-  --ui: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --ar: "Noto Naskh Arabic", "Segoe UI", Tahoma, serif;
-  --radius: 12px;
-  --primary: #1d5fd6;
-  --primary-hover: #0f3f9c;
-  --disabled-bg: #c9d6ee;
-  --disabled-ink: #4f5f7c;
-  --on-ink: #ffffff;
+  --bar: #1b1a17;
+  --bar-weekend: #cdbf9f;
+  --bar-peak: #a8211a;
+  --ui: "Libre Franklin", "Amiri", "Noto Naskh Arabic", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ar: "Amiri", "Noto Naskh Arabic", "Segoe UI", Tahoma, serif;
+  --radius: 4px;
+  --serif: "Source Serif 4", "Amiri", "Noto Naskh Arabic", Georgia, "Times New Roman", serif;
+  --mast: #1b1a17;
+  --mast-ink: #f6f0e1;
+  --stamp-shadow: #5a0f0b;
+  --primary: #a8211a;
+  --primary-hover: #8f1a14;
+  --disabled-bg: #e0d9c6;
+  --disabled-ink: #5a544b;
+  --on-ink: #fbf8ef;
   --field: #ffffff;
-  --row-hover: #fafbfd;
-  --excerpt: #2c3a4a;
-  --chip-hover: #d3e2fb;
-  --selection-bg: #bcd3fb;
-  --selection-ink: #0b1b33;
+  --row-hover: #f6f1e3;
+  --excerpt: #2a2823;
+  --chip-hover: #edcdc8;
+  --selection-bg: #ffe36e;
+  --selection-ink: #1b1a17;
   --err-solid: #b42318;
   --err-title: #8c1d14;
   --err-ink: #5c1a14;
@@ -61,34 +66,37 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
   /* Night reading: a deep blue-black sheet, off-white text (not pure white), the same single blue. */
-  --paper: #0f141b;
-  --sheet: #161d27;
-  --ink: #e8edf3;
-  --muted: #aab5c4;
-  --faint: #8d99ab;
-  --line: #273243;
-  --line-strong: #3d4a5e;
-  --wash: #1b2430;
-  --blue: #7aa7ff;
-  --blue-deep: #a9c6ff;
-  --blue-wash: #17284a;
-  --primary: #2f6fe8;
-  --primary-hover: #4a84f2;
-  --disabled-bg: #26324a;
-  --disabled-ink: #8190ad;
-  --on-ink: #0f141b;
-  --field: #0f141b;
-  --row-hover: #1a2330;
-  --excerpt: #cfd8e3;
-  --chip-hover: #22386a;
-  --selection-bg: #2b4a8a;
+  --paper: #15130f;
+  --sheet: #1e1b15;
+  --ink: #f1ecde;
+  --muted: #bdb4a2;
+  --faint: #a39a88;
+  --line: #332f26;
+  --line-strong: #4a4435;
+  --wash: #26221a;
+  --blue: #e0594f;
+  --blue-deep: #f08a82;
+  --blue-wash: #3a1a17;
+  --primary: #c43a30;
+  --primary-hover: #d9483d;
+  --disabled-bg: #3a352a;
+  --disabled-ink: #b3aa97;
+  --on-ink: #15130f;
+  --field: #15130f;
+  --row-hover: #24201a;
+  --excerpt: #e2dac6;
+  --chip-hover: #5a2723;
+  --selection-bg: #6b5a12;
   --selection-ink: #ffffff;
-  --amber: #f2b01e;
-  --amber-ink: #f5c55a;
-  --amber-wash: #3a2e0c;
-  --mark: #5c4a12;
-  --ok: #6fd69a;
-  --ok-wash: #14301f;
+  --mast: #0c0b08;
+  --mast-ink: #f6f0e1;
+  --stamp-shadow: #2a0705;
+  --amber: #e0594f;
+  --amber-ink: #f08a82;
+  --amber-wash: #3a1a17;
+  --mark: #6b5a12;
+  --ok: #7bc4a8;
+  --ok-wash: #15302a;
   --err: #ff8a7a;
   --err-wash: #3a1a17;
   --err-solid: #d92d20;
@@ -96,9 +104,9 @@
   --err-ink: #ffd2cb;
   --err-line: #7a342d;
   --err-line-soft: #5a2823;
-  --bar: #5b8def;
-  --bar-weekend: #6b7a90;
-  --bar-peak: #a9c6ff;
+  --bar: #d9cfb6;
+  --bar-weekend: #6b6350;
+  --bar-peak: #e0594f;
   --scrim: rgb(5 8 12 / 70%);
   --syn-bool: #7aa7ff;
   --syn-not: #ff8a7a;
@@ -112,34 +120,37 @@
 }
 :root[data-theme="dark"] {
   /* Night reading: a deep blue-black sheet, off-white text (not pure white), the same single blue. */
-  --paper: #0f141b;
-  --sheet: #161d27;
-  --ink: #e8edf3;
-  --muted: #aab5c4;
-  --faint: #8d99ab;
-  --line: #273243;
-  --line-strong: #3d4a5e;
-  --wash: #1b2430;
-  --blue: #7aa7ff;
-  --blue-deep: #a9c6ff;
-  --blue-wash: #17284a;
-  --primary: #2f6fe8;
-  --primary-hover: #4a84f2;
-  --disabled-bg: #26324a;
-  --disabled-ink: #8190ad;
-  --on-ink: #0f141b;
-  --field: #0f141b;
-  --row-hover: #1a2330;
-  --excerpt: #cfd8e3;
-  --chip-hover: #22386a;
-  --selection-bg: #2b4a8a;
+  --paper: #15130f;
+  --sheet: #1e1b15;
+  --ink: #f1ecde;
+  --muted: #bdb4a2;
+  --faint: #a39a88;
+  --line: #332f26;
+  --line-strong: #4a4435;
+  --wash: #26221a;
+  --blue: #e0594f;
+  --blue-deep: #f08a82;
+  --blue-wash: #3a1a17;
+  --primary: #c43a30;
+  --primary-hover: #d9483d;
+  --disabled-bg: #3a352a;
+  --disabled-ink: #b3aa97;
+  --on-ink: #15130f;
+  --field: #15130f;
+  --row-hover: #24201a;
+  --excerpt: #e2dac6;
+  --chip-hover: #5a2723;
+  --selection-bg: #6b5a12;
   --selection-ink: #ffffff;
-  --amber: #f2b01e;
-  --amber-ink: #f5c55a;
-  --amber-wash: #3a2e0c;
-  --mark: #5c4a12;
-  --ok: #6fd69a;
-  --ok-wash: #14301f;
+  --mast: #0c0b08;
+  --mast-ink: #f6f0e1;
+  --stamp-shadow: #2a0705;
+  --amber: #e0594f;
+  --amber-ink: #f08a82;
+  --amber-wash: #3a1a17;
+  --mark: #6b5a12;
+  --ok: #7bc4a8;
+  --ok-wash: #15302a;
   --err: #ff8a7a;
   --err-wash: #3a1a17;
   --err-solid: #d92d20;
@@ -147,9 +158,9 @@
   --err-ink: #ffd2cb;
   --err-line: #7a342d;
   --err-line-soft: #5a2823;
-  --bar: #5b8def;
-  --bar-weekend: #6b7a90;
-  --bar-peak: #a9c6ff;
+  --bar: #d9cfb6;
+  --bar-weekend: #6b6350;
+  --bar-peak: #e0594f;
   --scrim: rgb(5 8 12 / 70%);
   --syn-bool: #7aa7ff;
   --syn-not: #ff8a7a;
@@ -532,7 +543,7 @@ mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 3
   .trend-line { stroke-dasharray: none; }
 }
 
-.demo-note { padding: 8px 24px; background: var(--blue-wash); color: var(--ink); font-size: 14px; border-bottom: 1px solid var(--line); }
+.demo-note { padding: 8px 24px; background: var(--wash); color: var(--ink); font-size: 14px; border-bottom: 1px solid var(--line); }
 .demo-note strong { color: var(--blue-deep); }
 .demo-note a { color: var(--blue-deep); font-weight: 600; }
 
@@ -553,7 +564,8 @@ mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 3
 .chip.saved .apply { display: inline; width: auto; height: auto; padding: 0 4px; border-radius: 6px; font-size: inherit; font-weight: 600; cursor: pointer; }
 .chip.saved .apply::before { content: none; }
 
-.why-toggle { margin-top: 6px; font-size: 14px; }
+.why-toggle { margin-top: 8px; padding: 0; border: 0; background: transparent; font: 700 14px var(--ui); color: var(--blue); border-bottom: 2px solid currentColor; border-radius: 0; line-height: 1.3; }
+.why-toggle:hover { color: var(--blue-deep); }
 .why { margin: 8px 0 4px; padding: 10px 14px; background: var(--wash); border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
 .why p { margin: 0 0 6px; color: var(--muted); }
 .why ul { list-style: none; margin: 0; padding-inline-start: 18px; }
@@ -564,3 +576,59 @@ mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 3
 .why code { background: transparent; padding: 0; }
 .why-clause[data-matched="false"] > code { color: var(--muted); }
 .why details { margin: 2px 0 0 1.2em; color: var(--muted); }
+
+/* ================= Press Cuttings (theme B): components =================
+   Tokens above carry the colours; this block carries the shapes: squarer corners, serif headlines, a masthead,
+   results as clippings, a stamped primary button, a marker for matched words. */
+h1, .sources-head h2, .rundown-head h2, .dialog h2 { font-family: var(--serif); }
+h1 { font-size: 40px; line-height: 1.1; letter-spacing: -0.01em; }
+.sources-head h2 { font-size: 36px; letter-spacing: -0.01em; }
+
+/* masthead */
+.app-nav { background: var(--mast); color: var(--mast-ink); border-bottom: 0; }
+.app-nav .brand { font-family: var(--serif); font-size: 24px; letter-spacing: 0.01em; }
+.app-nav .brand b { color: #f0b8b0; }
+.app-nav button { color: var(--mast-ink); opacity: 0.78; border-bottom-width: 2px; }
+.app-nav button:hover:not([aria-pressed="true"]) { color: var(--mast-ink); opacity: 1; }
+.app-nav button[aria-pressed="true"] { color: var(--mast-ink); opacity: 1; border-bottom-color: var(--mast-ink); }
+/* the Light / Dark / Auto switch is a control, not a section tab */
+.app-nav .segmented button { color: var(--muted); opacity: 1; border-bottom: 0; }
+.app-nav .segmented button[aria-pressed="true"] { color: var(--on-ink); background: var(--ink); }
+.app-nav .segmented button:hover:not([aria-pressed="true"]) { color: var(--ink); }
+
+/* controls: stamped primary, square corners */
+button.primary { font-weight: 700; letter-spacing: 0.02em; border: 2px solid rgb(255 255 255 / 22%); box-shadow: 0 2px 0 var(--stamp-shadow); border-radius: 4px; }
+button.primary:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 1px 0 var(--stamp-shadow); }
+.filters-toggle, .range > button, .segmented, .rail nav button:not(.primary), .topic-actions button, .editor-form input,
+.editor-form textarea, .query-box, .back, .more, .inline select, .sources-tools input[type="search"], .sources-more button,
+.empty button, .notice.error, .filter-panel > input[type="search"], .range input, code { border-radius: 4px; }
+.filter-bar { border-bottom-color: var(--line-strong); }
+.chip { border-radius: 4px; border: 1px solid var(--err-line-soft); font-weight: 700; }
+.status-badge { border-radius: 4px; }
+
+/* results as clippings */
+.rundown { background: transparent; border: 0; border-radius: 0; }
+.rundown-head { padding: 4px 0 10px; border-bottom: 3px double var(--ink); }
+.rundown-head h2 { font: 700 13px var(--ui); letter-spacing: 0.12em; text-transform: uppercase; }
+.rundown-cols { display: none; }
+.rundown-day { margin-top: 26px; }
+.rundown-day-head { position: static; padding: 0 0 10px; background: transparent; border: 0; border-bottom: 1px solid var(--line-strong); font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.rundown-day ul { display: grid; gap: 14px; margin-top: 14px; }
+.rundown .rundown-row,
+.rundown .rundown-day:last-child .rundown-row:last-child {
+  grid-template-columns: 78px minmax(0, 1fr) 220px;
+  padding: 16px 22px 18px; background: var(--sheet); border: 1px solid var(--line); border-radius: 3px;
+  box-shadow: 0 1px 0 rgb(0 0 0 / 6%), 0 8px 18px -14px rgb(60 40 10 / 40%);
+}
+.rundown .rundown-row:hover { background: var(--row-hover); }
+.rundown-time { font: 700 13px var(--ui); letter-spacing: 0.06em; color: var(--muted); padding-top: 6px; }
+.badge-new { border: 1.5px solid var(--amber); background: transparent; color: var(--amber-ink); border-radius: 3px; transform: rotate(-2deg); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.headline { font-family: var(--serif); font-size: 24px; line-height: 1.3; font-weight: 700; letter-spacing: -0.005em; }
+.headline:hover { text-decoration-color: var(--blue); }
+.headline[dir="rtl"] { font-family: var(--ar); font-size: 28px; line-height: 1.55; }
+.excerpt { font-family: var(--serif); font-size: 18px; line-height: 1.65; }
+.excerpt[dir="rtl"] { font-family: var(--ar); font-size: 22px; line-height: 1.9; }
+mark { background: linear-gradient(transparent 12%, var(--mark) 12%, var(--mark) 92%, transparent 92%); border-radius: 0; padding: 0 3px; }
+.rundown-source strong { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+.chart, .editor-form, .sources-table-wrap, .attention, .empty { border-radius: 3px; }
+.sources-page td.name { font-family: var(--serif); font-size: 19px; }

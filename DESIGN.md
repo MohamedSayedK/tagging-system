@@ -1,34 +1,36 @@
-# Design system: The Rundown
+# Design system: Press Cuttings
 
-A broadcast newsroom running-order sheet for an analyst who reads hundreds of Arabic and English articles a day. Calm, ruled, fixed columns; one blue for every primary action. Source of truth for tokens: `web/src/styles.css` (`:root`). Prototypes the owner chose from: `design/prototypes/` (A = this system).
+A newspaper clipping desk for an analyst who reads hundreds of Arabic and English articles a day. Warm paper, serif headlines, a stamp-red accent and a yellow marker for matched words. Source of truth for tokens: `web/src/styles.css` (`:root`). Prototypes the owner chose from: `design/prototypes/` (B = this system; A, The Rundown, was the previous theme and C, the Split-Flap Concourse, a reference). Token names were kept from The Rundown so no component changed: `--blue*` now holds the stamp red.
 
 ## Principles
-1. Readability first: large headlines, 16px+ excerpts, WCAG AA contrast minimum, generous row spacing.
-2. One loud colour: signal blue marks every primary action; amber is reserved for "New" and the chart's average line.
-3. Fixed columns: time, headline, source never move between rows, so the eye scans one vertical.
+1. Readability first: large serif headlines, 18px excerpts, WCAG AA contrast minimum, generous card spacing.
+2. One loud colour: the stamp red marks every primary action, the New stamp and the chart's average line; everything else is ink on paper.
+3. Fixed columns: time, headline, source keep their place on every card, so the eye scans one vertical.
 4. Quiet by default: the topic form is folded behind "Edit topic" while reading; excerpts can be hidden (Compact).
-5. Arabic and English are equals: `dir="auto"` everywhere, Noto Naskh Arabic at a larger size than Latin.
+5. Arabic and English are equals: `dir="auto"` everywhere; Amiri carries Arabic in both the sans and serif stacks at a larger size than Latin.
 
 ## Colour (tokens)
-| Role | Token | Value |
-|---|---|---|
-| Page | `--paper` | `#fbfbf9` |
-| Surface | `--sheet` | `#ffffff` |
-| Text | `--ink` | `#14202e` |
-| Secondary text | `--muted` | `#4a5666` (7.6:1 on sheet) |
-| Tertiary / labels | `--faint` | `#5f6b7b` (5.4:1) |
-| Rules | `--line` / `--line-strong` | `#dfe3e8` / `#bcc4cf` |
-| Group header wash | `--wash` | `#f3f5f8` |
-| Primary action | `--blue` / `--blue-deep` | `#1d5fd6` / `#0f3f9c` |
-| Selected / chip | `--blue-wash` | `#e8f0fd` |
-| New + average | `--amber`, `--amber-ink`, `--amber-wash` | `#f2b01e`, `#7a5200`, `#fff3cf` |
-| Highlight (matched words) | `--mark` | `#fde9a2` |
-| Danger | `--err`, `--err-wash` | `#b42318`, `#fff1ef` |
-| Healthy (status only) | `--ok`, `--ok-wash` | `#1b6b3a`, `#e6f4ec` (7.2:1) |
-| Chart bars | `--bar`, `--bar-weekend`, `--bar-peak` | `#4f86e8`, `#8d9ab0`, `#123f9e` (all >= 3:1 on white) |
+| Role | Token | Light | Night |
+|---|---|---|---|
+| Page (ground) | `--paper` | `#f1ecde` | `#15130f` |
+| Surface (the slip) | `--sheet` | `#fbf8ef` | `#1e1b15` |
+| Text | `--ink` | `#1b1a17` (14.7:1 on paper) | `#f1ecde` |
+| Secondary text | `--muted` | `#55504a` (6.8:1) | `#bdb4a2` |
+| Tertiary / labels | `--faint` | `#625b51` (5.1:1 on wash) | `#a39a88` |
+| Rules | `--line` / `--line-strong` | `#d8d0bd` / `#b9ad93` | `#332f26` / `#4a4435` |
+| Wash (code, table heads) | `--wash` | `#e8e1ce` | `#26221a` |
+| Primary action, links, focus | `--blue` / `--blue-deep` | `#a8211a` / `#8f1a14` | `#e0594f` / `#f08a82` |
+| Primary button fill | `--primary` / `--primary-hover` | `#a8211a` / `#8f1a14` (white text 7.3:1) | `#c43a30` / `#d9483d` |
+| Chip / selected wash | `--blue-wash` | `#f6e2de` | `#3a1a17` |
+| New stamp + average line | `--amber`, `--amber-ink`, `--amber-wash` | same red family as the accent | same |
+| Highlight (matched words) | `--mark` | `#ffe36e` (marker) | `#6b5a12` |
+| Danger | `--err`, `--err-wash` | `#b42318`, `#fff1ef` | `#ff8a7a`, `#3a1a17` |
+| Healthy (status only) | `--ok`, `--ok-wash` | `#2f5d50`, `#e3ece8` | `#7bc4a8`, `#15302a` |
+| Chart bars | `--bar`, `--bar-weekend`, `--bar-peak` | `#1b1a17`, `#cdbf9f`, `#a8211a` | `#d9cfb6`, `#6b6350`, `#e0594f` |
+| Masthead band | `--mast` / `--mast-ink` | `#1b1a17` / `#f6f0e1` | `#0c0b08` / `#f6f0e1` |
+| Stamp button underside | `--stamp-shadow` | `#5a0f0b` | `#2a0705` |
 
-Strategy: Restrained. Neutrals plus one accent.
-
+Strategy: Restrained. Paper, ink, one red, one marker.
 ### Query syntax colours
 
 Used only inside query text (editor and the topic header), never elsewhere. Tokens `--syn-*` in `styles.css`, each with a light and a dark value, all AA on the field background. Colour is never the only cue: operators are bold, unbalanced brackets get a wavy underline.
@@ -43,30 +45,28 @@ Used only inside query text (editor and the topic header), never elsewhere. Toke
 | `--syn-d1`, `--syn-d2` | brackets at nesting level 1 and 2 (level 0 is ink; the cycle repeats every four levels) |
 | `--syn-match` | background of the bracket pair next to the caret |
 
-## Dark theme (night reading)
-Same system, same single blue, different ground: a deep blue-black sheet `#0f141b` / `#161d27`, off-white text `#e8edf3` (never pure white), muted `#aab5c4`, accent blue lifted to `#7aa7ff` for text and focus while the primary button stays `#2f6fe8` with white text. Selected pills invert (light fill, dark text via `--on-ink`). Chart bars `#5b8def`, weekend `#6b7a90`, busiest `#a9c6ff`; highlight `#5c4a12`; status colours lighten (`--ok #6fd69a`, `--err #ff8a7a`).
-Chosen with the Light / Dark / Auto switch in the top bar (Auto follows the system setting); saved in `localStorage` (`tagging.theme`) and applied before first paint from `web/index.html`. Dark tokens live twice in `styles.css` (system preference and `[data-theme="dark"]`): change both.
-
+## Night theme (night press)
+Same system, same single red, a different ground: a warm near-black `#15130f` / `#1e1b15`, off-white paper-coloured text `#f1ecde` (never pure white), muted `#bdb4a2`. The accent lifts to `#e0594f` for text and focus while the primary button stays `#c43a30` with white text. Selected pills invert (light fill, dark text via `--on-ink`). The masthead goes darker than the page (`#0c0b08`). Chart bars `#d9cfb6`, weekend `#6b6350`, busiest `#e0594f`; highlight `#6b5a12`; status colours lighten.
+Chosen with the Light / Dark / Auto switch in the masthead (Auto follows the system setting); saved in `localStorage` (`tagging.theme`) and applied before first paint from `web/index.html`. Dark tokens live twice in `styles.css` (system preference and `[data-theme="dark"]`): change both.
 ## Typography
 
-- UI and headlines: **Public Sans** 400/500/600/700, tabular numerals on (times, counts).
-- Arabic: **Noto Naskh Arabic** 500/600/700 (headline 23px / 1.65, excerpt 18px / 1.95).
-- Scale: page title 32 / topic h1, 20 headline and results heading, 16 body and excerpt, 14 secondary, 12 column labels (uppercase, 0.06em).
+- Headlines, topic titles, excerpts: **Source Serif 4** 400/600/700 (headline 24px / 1.3 bold, excerpt 18px / 1.65, topic title 40px).
+- UI, labels, buttons, numbers: **Libre Franklin** 400-800, tabular numerals on; section labels are 13px uppercase with 0.12em tracking.
+- Arabic: **Amiri** (400/700) first, **Noto Naskh Arabic** behind it; both sit in the sans and serif stacks after the Latin face, so Arabic glyphs fall through to them. Headline 28px / 1.55, excerpt 22px / 1.9 when the text is right-to-left.
 - Query text and code: system monospace, 14px.
 - Measure: excerpts max 72ch.
-
 ## Layout
 - Shell: 300px rail (topics, then filters when opened) + fluid main, max 1500px; below 960px the rail stacks on top.
-- Rundown rows: `84px | 1fr | 230px` (time | headline + excerpt | source/domain/country·language); inside narrow main (<760px container) the source drops under the headline.
-- Spacing rhythm: 4/8/12/16/20/24/28; rows 18px vertical padding, cards 12px radius, one border per card, no stacked shadows.
+- Cuttings: each result is a slip-like card, `78px | 1fr | 220px` (time + New stamp | headline + excerpt | source/domain/country·language); inside a narrow main (<760px container) the source drops under the headline. Day groups have a ruled uppercase header; the list header has a double rule.
+- Spacing rhythm: 4/8/12/16/20/24/28; rows 18px vertical padding, cards 3-4px radius, one border and one soft shadow per card.
 
 ## Components
-- **Primary button**: solid blue, white text, 8px radius, one soft shadow. Only: New topic, Save topic.
+- **Primary button**: solid stamp red, white text, 4px radius, a 2px hard underside like a rubber stamp. Only: New topic, Save topic.
 - **Segmented control**: ink fill for the pressed item (date presets, density).
-- **Chip**: blue-wash pill with a drawn close icon (24px target).
+- **Chip**: red-wash rectangle (4px radius, hairline border) with a drawn close icon (24px target).
 - **Day header**: sticky, wash background, day label left, article count right.
-- **Row**: time (+ amber "New" within the last hour), headline link with open icon, excerpt with `mark`, source column.
-- **Chart**: Bars and Trend views (a segmented toggle in the caption; same labels, hover sentence and click-to-narrow in both; trend is a 2.5px line over a 12% blue area with ringed points, the busiest point filled). Caption sentence (total, busiest, average), labelled y-axis on round steps, weekday letters (Fri/Sat greyed), dashed amber average line with label on the quieter side, busiest bar darkest and labelled, hover/focus sentence "Sat 10 Oct · 343 articles · 1,143% above average"; bars are buttons (click = filter to that bucket). Buckets are days up to 45 days, weeks to 400, months beyond (server decides).
+- **Cutting**: time (+ a red, slightly tilted "New" stamp within the last hour), headline link with open icon, excerpt with `mark`, source column.
+- **Chart**: Bars and Trend views (a segmented toggle in the caption; same labels, hover sentence and click-to-narrow in both; trend is a 2.5px line over a 12% red area with ringed points, the busiest point filled). Caption sentence (total, busiest, average), labelled y-axis on round steps, weekday letters (Fri/Sat greyed), dashed amber average line with label on the quieter side, busiest bar darkest and labelled, hover/focus sentence "Sat 10 Oct · 343 articles · 1,143% above average"; bars are buttons (click = filter to that bucket). Buckets are days up to 45 days, weeks to 400, months beyond (server decides).
 - **Topic colour**: an optional label colour per topic (teams give colours their own meaning), picked from a nine-colour named palette plus None, or freely with the rainbow **Custom color** button (popover: hex field, saturation/brightness square, hue slider, predefined colours; applies live, Escape or an outside click closes); shown as a dot in the topic list and before the topic's name, and spoken as "Color: Blue". The app's own blue stays the only UI accent: topic colours label topics, they never recolour controls or the chart.
 - **Dialog**: alertdialog, focus on the safe choice, danger button only for the destructive action.
 
@@ -85,6 +85,6 @@ One quiet entrance, then stillness. All motion is CSS (`styles.css`, "motion" bl
 
 ## Do / Don't
 
-- Do keep one blue primary action per area; do show full country, language and source-type names.
+- Do keep one red primary action per area; do show full country, language and source-type names.
 - Don't add colour for decoration, hero-number tiles, or a second accent.
 - Don't put excerpts in a second language-specific style: use `dir="auto"` and the Arabic face rules above.
