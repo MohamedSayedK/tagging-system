@@ -55,7 +55,24 @@ beforeAll(async () => {
       return send(200, "application/xml", `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title><item><title>${title}</title><link>${base}${own}</link><pubDate>${new Date().toUTCString()}</pubDate></item></channel></rss>`);
     }
     if (req.url === "/sa" || req.url === "/sb") return send(200, "text/html", article("Cabinet approves national housing programme for young citizens", "The cabinet approved the programme on Sunday."));
-    if (req.url === "/broken.xml") return send(500, "text/plain", "nope");
+    // Pages that are not a plain <article>: structured data, a page-only date, a description shorter than the feed's summary.
+    if (req.url === "/ex.xml") {
+      const item = (title: string, path: string, withDate: boolean, summary = "") =>
+        `<item><title>${title}</title><link>${base}${path}</link>${withDate ? `<pubDate>${new Date().toUTCString()}</pubDate>` : ""}${summary ? `<description>${summary}</description>` : ""}</item>`;
+      const items = [
+        item("Structured quokka", "/q1", true),
+        item("Undated quokka", "/q2", false),
+        item("Summary quokka", "/q3", true, "The feed summary for the quokka story is deliberately much longer than the short description the page offers, so the feed text is the better body."),
+      ];
+      return send(200, "application/xml", `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>${items.join("")}</channel></rss>`);
+    }
+    const chrome = `<footer><ul>${Array.from({ length: 14 }, (_, i) => `<li><a href="/s${i}">Section${i}</a></li>`).join("")}</ul></footer>`;
+    if (req.url === "/q1") {
+      const body = "Quokkas were counted on the island this week and the survey found the population stable. Rangers said the count was the most complete in a decade, covering every part of the reserve.";
+      return send(200, "text/html", `<html lang="en"><head><title>Structured quokka</title><script type="application/ld+json">${JSON.stringify({ "@type": "NewsArticle", articleBody: body })}</script></head><body>${chrome}</body></html>`);
+    }
+    if (req.url === "/q2") return send(200, "text/html", `<html lang="en"><head><title>Undated quokka</title><meta property="article:published_time" content="2026-09-20T06:00:00Z"></head><body>${article("Undated quokka", "Quokkas gathered near the lake at dawn.")}</body></html>`);
+    if (req.url === "/q3") return send(200, "text/html", `<html lang="en"><head><title>Summary quokka</title><meta property="og:description" content="A short quokka description of the page."></head><body>${chrome}</body></html>`);    if (req.url === "/broken.xml") return send(500, "text/plain", "nope");
     return send(404, "text/plain", "not found");
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -136,6 +153,25 @@ describe("ingestSource", () => {
     expect(unique.aggregations.domains.map((d: any) => d.key)).toEqual(["a.test"]);
   });
 
+  it("keeps where the text came from, and uses the page's structured text when the page body is only chrome", async () => {
+    await ingestSource({ ...source(["/ex.xml"]), name: "Extraction Local" });
+    await client.indices.refresh({ index: INDEX });
+
+    const r = await search({ query: "quokka" });
+    const by = Object.fromEntries(r.results.map((x: any) => [x.title, x]));
+    expect(by["Structured quokka"].extraction).toBe("structured");
+    expect(by["Structured quokka"].body).toContain("population stable");
+    expect(by["Undated quokka"].extraction).toBe("page");
+  });
+
+  it("dates an undated feed item from the page, and keeps the feed summary when it is fuller than the page description", async () => {
+    const r = await search({ query: "quokka" });
+    const by = Object.fromEntries(r.results.map((x: any) => [x.title, x]));
+
+    expect(by["Undated quokka"].published).toBe("2026-09-20T06:00:00.000Z");
+    expect(by["Summary quokka"].body).toMatch(/^The feed summary for the quokka story/);
+    expect(by["Summary quokka"].extraction).toBe("feed");
+  });
   it("fails when no feed of the source could be read, saying why", async () => {
     const outcome = await ingestSource(source(["/broken.xml"]));
 

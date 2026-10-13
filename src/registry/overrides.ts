@@ -9,6 +9,10 @@ export interface Overrides {
   aggregators: Set<string>;
   /** Domains the built-in list gets wrong. */
   notAggregators: Set<string>;
+  /** Domains that are crawled even though the region rule would leave them out. */
+  include: Set<string>;
+  /** Domains that are never promoted or crawled; wins over `include`. */
+  blocked: Set<string>;
 }
 
 // Sites that republish or link other outlets' stories rather than report their own. Not exhaustive; the owner
@@ -22,7 +26,7 @@ const BUILT_IN_AGGREGATORS = [
 const bare = (d: string) => d.trim().toLowerCase().replace(/^www\./, "");
 
 export function parseOverrides(text: string): Overrides {
-  const doc = (parse(text) ?? {}) as { country?: Record<string, unknown>; aggregators?: string[]; notAggregators?: string[] };
+  const doc = (parse(text) ?? {}) as { country?: Record<string, unknown>; aggregators?: string[]; notAggregators?: string[]; include?: string[]; blocked?: string[] };
   const country = new Map<string, string>();
   for (const [domain, code] of Object.entries(doc.country ?? {})) {
     if (typeof code !== "string" || !/^[A-Za-z]{2}$/.test(code)) {
@@ -34,6 +38,8 @@ export function parseOverrides(text: string): Overrides {
     country,
     aggregators: new Set((doc.aggregators ?? []).map(bare)),
     notAggregators: new Set((doc.notAggregators ?? []).map(bare)),
+    include: new Set((doc.include ?? []).map(bare)),
+    blocked: new Set((doc.blocked ?? []).map(bare)),
   };
 }
 

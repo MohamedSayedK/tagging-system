@@ -5,11 +5,14 @@ import { QuerySyntaxError, compileQuery, parse } from "../query/index.js";
 import { mergeSources } from "../ingest/mergeSources.js";
 import { loadSources } from "../ingest/sources.js";
 import { aggregatorDomains, countryOf, isAggregator, loadOverrides } from "../registry/overrides.js";
+import { promotedScope } from "../search/promotedScope.js";
 import { openSearchPromotions } from "../search/promotionStore.js";
 import { openSearchStore } from "../ingest/runStore.js";
 import { client, ensureIndices, INDEX, REGISTRY_INDEX, TOPICS_INDEX } from "../search/index-def.js";
 import { searchRegistry } from "../search/registrySearch.js";
 import { facetValues, isFacetName, search, SearchParams } from "../search/search.js";
+
+const STUCK_AFTER = 3;
 
 interface Topic { name: string; query: string; exclude?: string; color?: string }
 
@@ -67,7 +70,7 @@ export async function buildApp(opts: AppOptions = {}) {
       openSearchPromotions().activeSources(),
     ]);
     const curated = loadSources();
-    const names = new Set(mergeSources(curated, promoted).map((s) => s.name));
+    const names = new Set(mergeSources(curated, promoted, { inScope: await promotedScope(promoted) }).map((s) => s.name));
     return {
       ok: true,
       articles: (articles.body as any).count as number,
@@ -76,6 +79,10 @@ export async function buildApp(opts: AppOptions = {}) {
         configured: curated.length,
         fromRegistry: names.size - curated.length,
         failing: runs.filter((r) => names.has(r.name) && r.consecutiveFailures > 0).length,
+        // Three failed runs in a row is an outage, not a blip: named here so monitoring can alert on it.
+        stuck: runs
+          .filter((r) => names.has(r.name) && r.consecutiveFailures >= STUCK_AFTER)
+          .map((r) => ({ name: r.name, consecutiveFailures: r.consecutiveFailures, error: r.error })),
       },
     };
   });
@@ -143,7 +150,8 @@ export async function buildApp(opts: AppOptions = {}) {
     const runs = new Map((await openSearchStore().load()).map((r) => [r.name, r]));
     const curated = loadSources();
     const curatedNames = new Set(curated.map((s) => s.name));
-    return mergeSources(curated, await openSearchPromotions().activeSources()).map((s) => {
+    const promoted = await openSearchPromotions().activeSources();
+    return mergeSources(curated, promoted, { inScope: await promotedScope(promoted) }).map((s) => {
       const r = runs.get(s.name);
       return {
         name: s.name,

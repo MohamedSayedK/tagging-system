@@ -10,6 +10,8 @@ export interface RunRecord {
   consecutiveFailures: number;
   nextRun: string; // ISO
   durationMs: number;
+  /** Successful runs in a row that stored nothing new; a quiet feed is polled less often. */
+  idleRuns?: number;
 }
 
 export interface StatusStore {
@@ -26,6 +28,8 @@ export interface SchedulerOptions {
   /** Longest wait after repeated failures, ms. */
   maxBackoff?: number;
 }
+
+const MAX_IDLE_STRETCH = 4;
 
 const UNITS = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 } as const;
 
@@ -57,7 +61,8 @@ export function createScheduler(opts: SchedulerOptions) {
 
   async function runOne(source: { name: string; interval: number }) {
     const started = now();
-    const before = records.get(source.name)?.consecutiveFailures ?? 0;
+    const previous = records.get(source.name);
+    const before = previous?.consecutiveFailures ?? 0;
     let outcome: RunOutcome;
     try {
       outcome = await opts.run(source.name);
@@ -66,7 +71,11 @@ export function createScheduler(opts: SchedulerOptions) {
     }
     const failures = outcome.ok ? 0 : before + 1;
     // Failing feeds are retried less and less often, so one dead outlet doesn't get hammered.
-    const wait = outcome.ok ? source.interval : Math.min(source.interval * 2 ** failures, Math.max(maxBackoff, source.interval));
+    const idleRuns = outcome.ok && outcome.indexed === 0 ? (previous?.idleRuns ?? 0) + 1 : 0;
+    // A feed that published nothing new is asked less often (2x, then 4x the interval), and every run that
+    // finds something goes straight back to the configured interval.
+    const quiet = source.interval * Math.min(2 ** idleRuns, MAX_IDLE_STRETCH);
+    const wait = outcome.ok ? quiet : Math.min(source.interval * 2 ** failures, Math.max(maxBackoff, source.interval));
     const finished = now();
     const record: RunRecord = {
       name: source.name,
@@ -78,6 +87,7 @@ export function createScheduler(opts: SchedulerOptions) {
       consecutiveFailures: failures,
       nextRun: new Date(finished + wait).toISOString(),
       durationMs: finished - started,
+      idleRuns,
     };
     records.set(source.name, record);
     await opts.store.save(record);

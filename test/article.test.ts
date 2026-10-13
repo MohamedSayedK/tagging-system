@@ -48,6 +48,62 @@ describe("extractArticle", () => {
   });
 });
 
+describe("extractArticle: where the text came from", () => {
+  const longProse =
+    "The finance ministry announced on Sunday that the budget deficit narrowed in the third quarter, helped by growth in non-oil revenue. " +
+    "Officials said capital spending rose against the same period last year while current expenditure stayed under control. " +
+    "Analysts told reporters the figures strengthen confidence in the new budget and leave the government more room for development projects.";
+  const ld = (o: object) => `<script type="application/ld+json">${JSON.stringify(o)}</script>`;
+
+  it("says whether the text is the page's article, structured data, or only the page description", () => {
+    expect(extractArticle(page("", realParagraphs), URL)!.via).toBe("page");
+    expect(extractArticle(page(ld({ "@type": "NewsArticle", articleBody: longProse }), chromeOnly), URL)!.via).toBe("structured");
+    const described = page('<meta property="og:description" content="Budget deficit narrows in the third quarter as non-oil revenue grows.">', chromeOnly);
+    expect(extractArticle(described, URL)!.via).toBe("description");
+  });
+
+  it("reads the JSON-LD articleBody when the page itself yields only site chrome", () => {
+    const ex = extractArticle(page(ld({ "@type": "NewsArticle", articleBody: longProse }), chromeOnly), URL)!;
+
+    expect(ex.body).toBe(longProse);
+  });
+
+  it("finds the articleBody inside a JSON-LD graph, and reads an itemprop=articleBody element", () => {
+    const graph = ld({ "@graph": [{ "@type": "WebSite", name: "x" }, { "@type": "NewsArticle", articleBody: longProse }] });
+    expect(extractArticle(page(graph, chromeOnly), URL)!.body).toBe(longProse);
+
+    const micro = page("", `<div itemprop="articleBody">${longProse}</div>${chromeOnly}`);
+    expect(extractArticle(micro, URL)!.body).toContain("budget deficit narrowed in the third quarter");
+  });
+
+  it("takes the structured text when it is clearly fuller than what the page extraction found", () => {
+    const thin = `<article><h1>Budget</h1><p>The finance ministry announced the budget deficit narrowed, officials said on Sunday morning.</p></article>`;
+    const ex = extractArticle(page(ld({ "@type": "NewsArticle", articleBody: longProse }), thin), URL)!;
+
+    expect(ex.body).toBe(longProse);
+    expect(ex.via).toBe("structured");
+  });
+
+  it("ignores a structured body that is itself site chrome", () => {
+    const glued = "Ø£Ù‚Ø³Ø§Ù…Ø§Ù„Ù…ÙˆÙ‚Ø¹Ø§Ù„ØµÙØ­Ø©Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠØ©".repeat(12);
+    expect(extractArticle(page(ld({ "@type": "NewsArticle", articleBody: glued }), chromeOnly), URL)).toBeNull();
+  });
+});
+
+describe("extractArticle: the page's own publication date", () => {
+  const withMeta = (head: string, body = realParagraphs) => extractArticle(page(head, body), URL)!;
+
+  it("reads article:published_time, JSON-LD datePublished, then a <time datetime> in the article", () => {
+    expect(withMeta('<meta property="article:published_time" content="2026-10-12T08:30:00+03:00">').published).toBe("2026-10-12T05:30:00.000Z");
+    expect(withMeta('<script type="application/ld+json">{"@type":"NewsArticle","datePublished":"2026-10-11T10:00:00Z"}</script>').published).toBe("2026-10-11T10:00:00.000Z");
+    expect(withMeta("", realParagraphs.replace("<article>", '<article><time datetime="2026-10-10T07:00:00Z">yesterday</time>')).published).toBe("2026-10-10T07:00:00.000Z");
+  });
+
+  it("has no date when the page gives none or something unparseable, and never makes one up", () => {
+    expect(withMeta("").published).toBeUndefined();
+    expect(withMeta('<meta property="article:published_time" content="soon">').published).toBeUndefined();
+  });
+});
 describe("looksLikeProse", () => {
   it("accepts ordinary paragraphs in Arabic and English", () => {
     expect(looksLikeProse("أعلنت وزارة المالية أن عجز الميزانية جاء دون التقديرات الأولية للربع الثالث. وأشار البيان إلى ارتفاع الإنفاق الرأسمالي.")).toBe(true);

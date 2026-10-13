@@ -4,17 +4,26 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 process.env.DOMAIN_MIN_INTERVAL_MS = "0"; // the local test server is one "site"
 process.env.FETCH_RETRY_DELAY_MS = "0";
-const { fetchText } = await import("../src/ingest/article.js");
+const { fetchFeedText, fetchText } = await import("../src/ingest/article.js");
 
 let server: Server;
 let base = "";
 const hits: Record<string, number> = {};
+const conditional: Record<string, (string | undefined)[]> = {}; // If-None-Match / If-Modified-Since seen per path
 
 beforeAll(async () => {
   server = createServer((req, res) => {
     const path = req.url ?? "/";
     hits[path] = (hits[path] ?? 0) + 1;
     const n = hits[path]!;
+    if (path === "/etag-feed" || path === "/dated-feed") {
+      const seen = (conditional[path] ??= []);
+      seen.push(String(req.headers["if-none-match"] ?? req.headers["if-modified-since"] ?? ""));
+      const validator = path === "/etag-feed" ? { etag: `"v1"` } : { "last-modified": "Mon, 12 Oct 2026 08:00:00 GMT" };
+      const sent = path === "/etag-feed" ? req.headers["if-none-match"] === `"v1"` : req.headers["if-modified-since"] === "Mon, 12 Oct 2026 08:00:00 GMT";
+      if (sent) return void (res.writeHead(304, validator), res.end());
+      return void (res.writeHead(200, validator), res.end("<rss>the feed</rss>"));
+    }
     if (path === "/flaky") return n === 1 ? (res.writeHead(503), res.end("busy")) : (res.writeHead(200), res.end("ok after retry"));
     if (path === "/reset") return n === 1 ? req.socket.destroy() : (res.writeHead(200), res.end("ok after reset"));
     if (path === "/always503") return void (res.writeHead(503), res.end("down"));
@@ -61,5 +70,27 @@ describe("fetchText", () => {
     await new Promise((r) => probe.close(r));
 
     await expect(fetchText(`http://127.0.0.1:${closedPort}/feed`)).rejects.toThrow(/ECONNREFUSED/);
+  });
+});
+
+describe("fetchFeedText: conditional requests", () => {
+  it("asks again with the ETag it was given, and a 304 gives back the text it already has", async () => {
+    await expect(fetchFeedText(`${base}/etag-feed`)).resolves.toBe("<rss>the feed</rss>");
+    await expect(fetchFeedText(`${base}/etag-feed`)).resolves.toBe("<rss>the feed</rss>");
+
+    expect(conditional["/etag-feed"]).toEqual(["", `"v1"`]);
+  });
+
+  it("does the same with Last-Modified", async () => {
+    await fetchFeedText(`${base}/dated-feed`);
+    await expect(fetchFeedText(`${base}/dated-feed`)).resolves.toBe("<rss>the feed</rss>");
+
+    expect(conditional["/dated-feed"]).toEqual(["", "Mon, 12 Oct 2026 08:00:00 GMT"]);
+  });
+
+  it("is an ordinary fetch for a server that sends no validators", async () => {
+    await expect(fetchFeedText(`${base}/plain`)).resolves.toBe("ok");
+    await expect(fetchFeedText(`${base}/plain`)).resolves.toBe("ok");
+    expect(hits["/plain"]).toBe(2);
   });
 });

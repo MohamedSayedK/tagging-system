@@ -35,6 +35,9 @@ services:
       PORT: "3000"
     ports:
       - "127.0.0.1:3000:3000"
+    volumes:
+      # Edited on the host, read again by the running containers: no rebuild for country, include or blocked.
+      - ./registry-overrides.yaml:/app/registry-overrides.yaml:ro
 
   worker:
     profiles: ["app"]
@@ -49,6 +52,9 @@ services:
       # Identifies the crawler to the sites it reads; must contain a contact URL, or promotion stays off.
       USER_AGENT: ${USER_AGENT:-}
       INGEST_CONCURRENCY: ${INGEST_CONCURRENCY:-16}
+      PROMOTE_SCOPE: ${PROMOTE_SCOPE:-regional}
+    volumes:
+      - ./registry-overrides.yaml:/app/registry-overrides.yaml:ro
 
 volumes:
   osdata:

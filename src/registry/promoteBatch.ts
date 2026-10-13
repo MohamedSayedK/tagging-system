@@ -3,7 +3,7 @@ import { selectToPromote } from "./selectToPromote.js";
 
 export interface PromoteBatchOptions {
   /** Registry domains to choose from, busiest first. */
-  pool: () => Promise<{ domain: string; articleCount: number; languages?: string[] }[]>;
+  pool: () => Promise<{ domain: string; articleCount: number; languages?: string[]; country?: string }[]>;
   /** Last attempt per domain (see the promotion store). */
   attempts: (domains: string[]) => Promise<Map<string, { status: PromotionStatus; checkedAt: string }>>;
   save: (p: Promotion) => Promise<void>;
@@ -15,6 +15,7 @@ export interface PromoteBatchOptions {
   concurrency: number;
   onResult?: (p: Promotion) => void;
   isAggregator?: (domain: string) => boolean;
+  inScope?: (domain: string, languages: string[] | undefined, country: string | undefined) => boolean;
   countryOf?: (domain: string) => string | undefined;
   retryAfterDays?: number;
 }
@@ -36,6 +37,7 @@ export async function promoteBatch(o: PromoteBatchOptions): Promise<PromoteBatch
     now: o.now,
     limit: o.limit,
     isAggregator: o.isAggregator,
+    inScope: o.inScope,
     retryAfterDays: o.retryAfterDays,
   });
 

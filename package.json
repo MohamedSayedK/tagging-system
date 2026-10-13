@@ -16,6 +16,8 @@
     "discover:gdelt": "tsx src/ingest/discoverGdelt.ts",
     "promote": "tsx src/ingest/promoteRegistry.ts",
     "seed:wikidata": "tsx src/ingest/seedWikidata.ts",
+    "reindex:stem": "tsx src/search/reindexStem.ts",
+    "report:extraction": "tsx src/ingest/extractionReport.ts",
     "demo:data": "tsx src/ingest/exportDemo.ts",
     "demo:registry": "tsx src/ingest/exportDemoRegistry.ts",
     "build:demo": "vite build --config web/vite.config.ts --mode demo --base ./ --outDir ../site/app --emptyOutDir"

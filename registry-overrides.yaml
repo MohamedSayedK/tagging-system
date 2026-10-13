@@ -5,6 +5,8 @@
 # aggregators:   sites that republish others' stories; they are skipped when promoting to crawl sources.
 #                A built-in list already covers the common ones (see src/registry/overrides.ts).
 # notAggregators: take a domain off the built-in list.
+# include:      domains that are crawled although the region rule (see PROMOTE_SCOPE) would leave them out.
+# blocked:      domains that are never promoted or crawled, whatever else says; wins over include.
 
 country:
   # Saudi Arabia
@@ -50,3 +52,15 @@ country:
 
 aggregators: []
 notAggregators: []
+
+# Arabic outlets the registry could not place by language or country.
+include:
+  - el-balad.com
+  - ghanamma.com
+
+# Stock-price spam that the busiest-first promotion kept finding.
+blocked:
+  - tickerreport.com
+  - themarketsdaily.com
+  - dailypolitical.com
+

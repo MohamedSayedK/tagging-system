@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createScheduler, parseDuration, RunOutcome, RunRecord, StatusStore } from "../src/ingest/scheduler.js";
 
 const MIN = 60_000;
@@ -107,6 +107,40 @@ describe("scheduler", () => {
     expect(record(s).nextRun).toBe(new Date(s.now() + 15 * MIN).toISOString());
   });
 
+  it("polls a quiet feed less often, up to four times the interval, and goes back to normal when it publishes again", async () => {
+    const quiet: RunOutcome = { ok: true, found: 20, indexed: 0 };
+    const s = setup({ outcomes: { A: [quiet, quiet, quiet, quiet, { ok: true, found: 21, indexed: 1 }] } });
+    const nextIn = () => Date.parse(record(s).nextRun) - s.now();
+
+    await s.scheduler.tick(); // nothing new once: 15m * 2
+    expect(nextIn()).toBe(30 * MIN);
+
+    s.advance(30 * MIN);
+    await s.scheduler.tick(); // twice: 15m * 4
+    expect(nextIn()).toBe(60 * MIN);
+
+    s.advance(60 * MIN);
+    await s.scheduler.tick(); // still quiet: stays at the cap
+    expect(nextIn()).toBe(60 * MIN);
+
+    s.advance(60 * MIN);
+    await s.scheduler.tick();
+    s.advance(60 * MIN);
+    await s.scheduler.tick(); // something new: back to the configured interval
+    expect(nextIn()).toBe(15 * MIN);
+    expect(record(s).idleRuns).toBe(0);
+  });
+
+  it("does not stretch the wait for a failing source (backoff already does that) and counts a failure as not idle", async () => {
+    const fail: RunOutcome = { ok: false, found: 0, indexed: 0, error: "down" };
+    const s = setup({ outcomes: { A: [{ ok: true, found: 5, indexed: 0 }, fail] } });
+    await s.scheduler.tick();
+    s.advance(30 * MIN);
+
+    await s.scheduler.tick();
+
+    expect(record(s)).toMatchObject({ ok: false, idleRuns: 0, consecutiveFailures: 1 });
+  });
   it("records a thrown error as a failure and still runs the other sources", async () => {
     const s = setup({
       sources: [{ name: "A", interval: 15 * MIN }, { name: "B", interval: 15 * MIN }],

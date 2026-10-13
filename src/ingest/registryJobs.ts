@@ -2,6 +2,7 @@
 import { discover } from "../registry/discover.js";
 import { countryOf, isAggregator, loadOverrides } from "../registry/overrides.js";
 import { promoteBatch } from "../registry/promoteBatch.js";
+import { loadScope } from "../registry/scope.js";
 import { queryWikidata, seedFromWikidata } from "../registry/wikidata.js";
 import { openSearchPromotions } from "../search/promotionStore.js";
 import { openSearchRegistry } from "../search/registryStore.js";
@@ -52,13 +53,15 @@ export async function promoteFromRegistry({
 }) {
   const promotions = openSearchPromotions();
   const overrides = loadOverrides();
+  const scope = loadScope(process.env, overrides);
   return promoteBatch({
     isAggregator: (d) => isAggregator(d, overrides),
+    inScope: scope.allows,
     countryOf: (d) => countryOf(d, overrides),
     // A pool larger than `limit`, since many candidates are filtered out as tried or configured. Arabic
     // publishers are always pooled so the busiest global domains cannot crowd them out.
     pool: async () => {
-      const byDomain = new Map<string, { domain: string; articleCount: number; languages: string[] }>();
+      const byDomain = new Map<string, { domain: string; articleCount: number; languages: string[]; country?: string }>();
       for (const poolLang of lang ? [lang] : ["ar", undefined]) {
         for (let from = 0, got = 0; got < limit * 5 && from < 5000; from += 500) {
           const page = await searchRegistry({ lang: poolLang, from, size: 500 });

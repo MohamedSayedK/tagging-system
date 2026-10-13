@@ -96,3 +96,25 @@ describe("GET /status", () => {
     });
   });
 });
+
+describe("GET /status: stuck sources", () => {
+  it("names the sources that have failed three runs in a row, with the last error, so an outage is visible without opening the UI", async () => {
+    const { loadSources } = await import("../src/ingest/sources.js");
+    const { openSearchStore } = await import("../src/ingest/runStore.js");
+    const [first, second] = loadSources();
+    const store = openSearchStore();
+    const run = (name: string, failures: number, error?: string) => ({
+      name, lastRun: "2026-10-13T10:00:00.000Z", ok: failures === 0, found: 0, indexed: 0, ...(error && { error }),
+      consecutiveFailures: failures, nextRun: "2026-10-13T11:00:00.000Z", durationMs: 10,
+    });
+    await store.save(run(first!.name, 4, "HTTP 503"));
+    await store.save(run(second!.name, 1, "timeout")); // one failure is a blip, not an outage
+    await client.indices.refresh({ index: RUNS_INDEX });
+    const app = await make();
+
+    const res = await app.inject({ method: "GET", url: "/status" });
+
+    expect(res.json().sources.failing).toBe(2);
+    expect(res.json().sources.stuck).toEqual([{ name: first!.name, consecutiveFailures: 4, error: "HTTP 503" }]);
+  });
+});

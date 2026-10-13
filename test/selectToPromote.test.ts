@@ -19,6 +19,32 @@ describe("selectToPromote", () => {
     expect(picked).toEqual(["big.com", "mid.com"]);
   });
 
+  it("leaves out candidates the scope refuses, so out-of-region domains are never tried", () => {
+    const picked = selectToPromote({
+      candidates: [rec("okaz.com.sa", 50), rec("tickerreport.com", 900)],
+      attempts: new Map(),
+      curatedDomains: new Set(),
+      now: NOW,
+      limit: 10,
+      inScope: (domain) => domain.endsWith(".sa"),
+    });
+
+    expect(picked).toEqual(["okaz.com.sa"]);
+  });
+
+  it("hands the scope a candidate's languages and country", () => {
+    const seen: unknown[] = [];
+    selectToPromote({
+      candidates: [{ domain: "gulfnews.com", articleCount: 5, languages: ["eng"], country: "AE" }],
+      attempts: new Map(),
+      curatedDomains: new Set(),
+      now: NOW,
+      limit: 10,
+      inScope: (...args) => (seen.push(args), true),
+    });
+
+    expect(seen).toEqual([["gulfnews.com", ["eng"], "AE"]]);
+  });
   it("skips domains the owner already configured, with or without www", () => {
     const picked = selectToPromote({
       candidates: [rec("okaz.com.sa", 50), rec("sabq.org", 40)],

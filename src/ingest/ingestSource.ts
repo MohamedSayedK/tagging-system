@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { client, INDEX } from "../search/index-def.js";
-import { allowedByRobots, extractArticle, fetchText } from "./article.js";
+import { allowedByRobots, extractArticle, fetchFeedText, fetchText } from "./article.js";
 import { baseLanguage, detectLanguage } from "../registry/language.js";
 import { FeedItem, parseFeed } from "./feeds.js";
 import { titleKey } from "./titleKey.js";
@@ -67,7 +67,7 @@ export async function ingestSource(src: Omit<Source, "interval" | "maxItems" | "
   const feedErrors: string[] = [];
   for (const feed of src.feeds) {
     try {
-      items.push(...parseFeed(await fetchText(feed.url), feed.kind));
+      items.push(...parseFeed(await fetchFeedText(feed.url), feed.kind));
     } catch (e) {
       feedErrors.push((e as Error).message);
       console.warn(`[${src.name}] feed failed ${feed.url}: ${(e as Error).message}`);
@@ -93,14 +93,22 @@ export async function ingestSource(src: Omit<Source, "interval" | "maxItems" | "
     let body = it.summary ?? "";
     let author = it.author;
     let lang = src.lang;
+    let published = it.published;
+    // Where `body` came from, so extraction quality can be measured and re-run for the weak spots.
+    let extraction: string | undefined = body ? "feed" : undefined;
     try {
       if (await allowedByRobots(it.url)) {
         const ex = extractArticle(await fetchText(it.url), it.url);
         if (ex) {
           title ||= ex.title;
-          body = ex.body;
           author ||= ex.author;
           lang ||= ex.lang;
+          published ??= ex.published;
+          // A page description is only a snippet: a fuller feed summary is the better body.
+          if (!(ex.via === "description" && body.length > ex.body.length)) {
+            body = ex.body;
+            extraction = ex.via;
+          }
         }
       }
     } catch (e) {
@@ -123,8 +131,9 @@ export async function ingestSource(src: Omit<Source, "interval" | "maxItems" | "
         sourcetype: src.sourcetype,
         sourcecountry: src.country,
         lang,
-        published: it.published ?? now,
+        published: published ?? now,
         fetched: now,
+        ...(extraction && { extraction }),
       },
     });
   });

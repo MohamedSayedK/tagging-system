@@ -4,6 +4,10 @@
 import { statSync } from "node:fs";
 import { ensureIndices } from "../search/index-def.js";
 import { purgeOlderThan } from "../search/retention.js";
+import { hostname } from "node:os";
+import { createLease } from "./lease.js";
+import { openSearchLease } from "../search/leaseStore.js";
+import { promotedScope } from "../search/promotedScope.js";
 import { openSearchPromotions } from "../search/promotionStore.js";
 import { ingestSource } from "./ingestSource.js";
 import { mergeSources } from "./mergeSources.js";
@@ -71,8 +75,8 @@ let loadedAt = 0;
 let promotedAt = 0;
 let scheduler: ReturnType<typeof createScheduler> | null = null;
 
-function rebuild(promoted: Awaited<ReturnType<typeof promotions.activeSources>>) {
-  sources = mergeSources(curated, promoted);
+function rebuild(promoted: Awaited<ReturnType<typeof promotions.activeSources>>, inScope: Awaited<ReturnType<typeof promotedScope>>) {
+  sources = mergeSources(curated, promoted, { inScope });
   scheduler = createScheduler({
     sources,
     store,
@@ -108,15 +112,34 @@ async function refreshSources() {
     console.error(`[worker] promoted sources not loaded: ${(e as Error).message}`);
     if (!yamlChanged) return;
   }
-  const same = scheduler && !yamlChanged && mergeSources(curated, promoted).length === sources.length;
-  if (!same) rebuild(promoted);
+  let inScope: Awaited<ReturnType<typeof promotedScope>>;
+  try {
+    inScope = await promotedScope(promoted);
+  } catch (e) {
+    console.error(`[worker] crawl scope not applied: ${(e as Error).message}`);
+    inScope = () => true;
+  }
+  const same = scheduler && !yamlChanged && mergeSources(curated, promoted, { inScope }).length === sources.length;
+  if (!same) rebuild(promoted, inScope);
 }
 
 let stopping = false;
 for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => (stopping = true));
 
+// Two workers would crawl every source twice, so only the holder of the lease crawls; others stand by.
+const lease = createLease(openSearchLease(), `${hostname()}-${process.pid}`, Math.max(TICK_MS * 4, 10 * 60_000));
+let standingBy = false;
+
 await ensureIndices();
 while (!stopping) {
+  if (!(await lease.tryAcquire())) {
+    if (!standingBy) console.log("[worker] another worker holds the crawl lease; standing by");
+    standingBy = true;
+    await new Promise((r) => setTimeout(r, TICK_MS));
+    continue;
+  }
+  if (standingBy) console.log("[worker] took over the crawl lease");
+  standingBy = false;
   await refreshSources();
   // Jobs run in the background so a long discovery never delays the crawl.
   for (const job of jobs) {
@@ -136,4 +159,5 @@ while (!stopping) {
   }
   await new Promise((r) => setTimeout(r, TICK_MS));
 }
+await lease.release();
 console.log("[worker] stopped");

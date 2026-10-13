@@ -21,6 +21,15 @@ const promoted = (domain: string) => ({
 });
 
 describe("mergeSources", () => {
+  it("leaves out promoted sources the scope refuses, without touching the configured ones", () => {
+    const merged = mergeSources(
+      [yamlSource("Arab News", "arabnews.com")],
+      [promoted("dostor.org"), promoted("tickerreport.com")],
+      { inScope: (p) => p.domain !== "tickerreport.com" },
+    );
+
+    expect(merged.map((s) => s.name)).toEqual(["Arab News", "dostor.org"]);
+  });
   it("adds promoted sources after the configured ones, with gentler crawl defaults", () => {
     const merged = mergeSources([yamlSource("Arab News", "arabnews.com")], [promoted("dostor.org")]);
 
