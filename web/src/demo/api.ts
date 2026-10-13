@@ -119,7 +119,7 @@ export function createDemoFetch(
     exclude: topic.exclude,
     from: q.get("from") ?? undefined,
     to: q.get("to") ?? undefined,
-    sort: (q.get("sort") as "recent" | "oldest" | null) ?? undefined,
+    sort: (q.get("sort") as "recent" | "oldest" | "relevance" | null) ?? undefined,
     offset: q.get("offset") ? Number(q.get("offset")) : undefined,
     size: q.get("size") ? Number(q.get("size")) : undefined,
     interval: (q.get("interval") as never) ?? undefined,

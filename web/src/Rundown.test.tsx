@@ -157,7 +157,7 @@ describe("the topic editor gets out of the way while reading", () => {
     const user = await open();
 
     expect(screen.getByRole("heading", { level: 1, name: "Economy" })).toBeInTheDocument();
-    expect(screen.getByText("budget NEAR/8 deficit", { selector: "code" })).toBeInTheDocument();
+    expect(document.querySelector(".topic-query code")).toHaveTextContent("budget NEAR/8 deficit");
     const edit = screen.getByRole("button", { name: "Edit topic" });
     expect(edit).toHaveAttribute("aria-expanded", "false");
 

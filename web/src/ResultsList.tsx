@@ -21,7 +21,9 @@ function Highlighted({ html }: { html: string }) {
 }
 
 /** Consecutive results sharing a UTC day; the server's order (newest or oldest first) is kept. */
-function byDay(results: Result[]): { day: string; items: Result[] }[] {
+function byDay(results: Result[], ranked: boolean): { day: string; items: Result[] }[] {
+  // Best match first: days interleave, so one group in the server's order instead of a heading per day.
+  if (ranked) return [{ day: RANKED, items: results }];
   const groups: { day: string; items: Result[] }[] = [];
   for (const r of results) {
     const day = r.published.slice(0, 10);
@@ -32,7 +34,9 @@ function byDay(results: Result[]): { day: string; items: Result[] }[] {
   return groups;
 }
 
-export function ResultsList({ total, results, density, now, toolbar }: { total: number; results: Result[]; density: Density; now: Date; toolbar?: ReactNode }) {
+const RANKED = "ranked";
+
+export function ResultsList({ total, results, density, now, toolbar, ranked = false }: { total: number; results: Result[]; density: Density; now: Date; toolbar?: ReactNode; ranked?: boolean }) {
   return (
     <section aria-label="Results" className="rundown">
       <header className="rundown-head">
@@ -44,10 +48,10 @@ export function ResultsList({ total, results, density, now, toolbar }: { total: 
         <span>Headline</span>
         <span>Source</span>
       </div>
-      {byDay(results).map((g) => (
-        <section key={g.day} role="group" aria-label={dayLabel(g.day)} className="rundown-day">
+      {byDay(results, ranked).map((g) => (
+        <section key={g.day} role="group" aria-label={g.day === RANKED ? "Best matches first" : dayLabel(g.day)} className="rundown-day">
           <header className="rundown-day-head">
-            <span>{dayLabel(g.day)}</span>
+            <span>{g.day === RANKED ? "Best matches first" : dayLabel(g.day)}</span>
             <span>{articlesCount(g.items.length)}</span>
           </header>
           <ul>
@@ -56,6 +60,7 @@ export function ResultsList({ total, results, density, now, toolbar }: { total: 
               return (
                 <li key={r.id} className="rundown-row">
                   <div className="rundown-time">
+                    {ranked && <span className="rundown-date">{dayLabel(r.published.slice(0, 10))}</span>}
                     <time dateTime={r.published} data-testid="time">
                       {timeLabel(r.published)}
                     </time>

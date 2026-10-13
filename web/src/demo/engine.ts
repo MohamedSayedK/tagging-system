@@ -13,6 +13,8 @@ export interface DemoArticle {
   sourcecountry?: string;
   lang?: string;
   published: string;
+  /** When the crawler harvested it; snapshots made before this was exported fall back to `published`. */
+  fetched?: string;
 }
 
 export interface SearchInput {
@@ -20,7 +22,7 @@ export interface SearchInput {
   exclude?: string;
   from?: string;
   to?: string;
-  sort?: "recent" | "oldest";
+  sort?: "recent" | "oldest" | "relevance";
   offset?: number;
   size?: number;
   interval?: "auto" | "day" | "week" | "month";
@@ -51,6 +53,37 @@ export function fold(s: string): string {
 }
 const WORDS = /[\p{L}\p{N}]+/gu;
 const tokens = (s: string) => fold(s).match(WORDS) ?? [];
+
+// ---- stemming, the same two filters the real `stem:` analyzer applies after folding ----
+// Lucene's light Arabic stemmer: one prefix, then each suffix in turn, never leaving a stem under two letters.
+const AR_PREFIXES = ["ال", "وال", "بال", "كال", "فال", "لل", "و"];
+const AR_SUFFIXES = ["ها", "ان", "ات", "ون", "ين", "يه", "ية", "ه", "ة", "ي"];
+function stemArabic(word: string): string {
+  let w = word;
+  for (const p of AR_PREFIXES) {
+    if (w.length < (p.length === 1 ? 4 : p.length + 2) || !w.startsWith(p)) continue;
+    w = w.slice(p.length);
+    break;
+  }
+  for (const s of AR_SUFFIXES) {
+    if (w.length <= (s.length === 1 ? 4 : s.length + 1) || !w.endsWith(s)) continue;
+    w = w.slice(0, -s.length);
+  }
+  return w;
+}
+// Lucene's minimal English stemmer: plurals only (ies -> y, es/s dropped, never ss or us).
+function stemEnglishPlural(w: string): string {
+  if (w.length < 3 || !w.endsWith("s")) return w;
+  const c = w[w.length - 2]!;
+  if (c === "u" || c === "s") return w;
+  if (c === "e") {
+    if (w.length > 3 && w[w.length - 3] === "i" && w[w.length - 4] !== "a" && w[w.length - 4] !== "e") return w.slice(0, -3) + "y";
+    if ("iaoe".includes(w[w.length - 3] ?? "")) return w;
+  }
+  return w.slice(0, -1);
+}
+// Two Arabic passes, like the real analyzer: one prefix per pass, so الوزير needs two to meet وزير.
+const stemToken = (w: string) => stemEnglishPlural(stemArabic(stemArabic(w)));
 
 type Span = [number, number]; // inclusive token positions
 
@@ -92,35 +125,36 @@ function slopSpans(field: string[], words: string[], slop: number): Span[] {
   return out;
 }
 
-function leafSpans(field: string[], value: string, isTerm: boolean, slop?: number): Span[] {
+function leafSpans(field: string[], value: string, isTerm: boolean, slop?: number, stem = false): Span[] {
   if (isTerm && hasWildcard(value)) {
     const re = wildcardRegex(value);
     const out: Span[] = [];
     field.forEach((t, i) => re.test(t) && out.push([i, i]));
     return out;
   }
-  return slop === undefined ? phraseSpans(field, tokens(value)) : slopSpans(field, tokens(value), slop);
+  const words = stem ? tokens(value).map(stemToken) : tokens(value);
+  return slop === undefined ? phraseSpans(field, words) : slopSpans(field, words, slop);
 }
 
 /** Spans in one field where an operand of NEAR (term, phrase, OR group, nested NEAR) matches. */
-function spansOf(node: Node, field: string[]): Span[] {
+function spansOf(node: Node, field: string[], stem = false): Span[] {
   switch (node.type) {
     case "term":
-      return leafSpans(field, node.value, true);
+      return leafSpans(field, node.value, true, undefined, stem);
     case "phrase":
-      return leafSpans(field, node.value, false, node.slop);
+      return leafSpans(field, node.value, false, node.slop, stem);
     case "or":
-      return node.children.flatMap((c) => spansOf(c, field));
+      return node.children.flatMap((c) => spansOf(c, field, stem));
     case "and": {
       // `A NOT B` inside NEAR: occurrences of A that are not inside an occurrence of B.
       const positive = node.children.find((c) => c.type !== "not")!;
-      const excluded = node.children.flatMap((c) => (c.type === "not" ? spansOf(c.child, field) : []));
-      return spansOf(positive, field).filter(([s, e]) => !excluded.some(([xs, xe]) => xs <= s && e <= xe));
+      const excluded = node.children.flatMap((c) => (c.type === "not" ? spansOf(c.child, field, stem) : []));
+      return spansOf(positive, field, stem).filter(([s, e]) => !excluded.some(([xs, xe]) => xs <= s && e <= xe));
     }
     case "near": {
-      let acc = spansOf(node.children[0]!, field);
+      let acc = spansOf(node.children[0]!, field, stem);
       for (const next of node.children.slice(1)) {
-        const right = spansOf(next, field);
+        const right = spansOf(next, field, stem);
         const merged: Span[] = [];
         for (const a of acc) {
           for (const b of right) {
@@ -140,6 +174,22 @@ function spansOf(node: Node, field: string[]): Span[] {
   }
 }
 
+function hasWildcardTerm(node: Node): boolean {
+  switch (node.type) {
+    case "term":
+      return hasWildcard(node.value);
+    case "and":
+    case "or":
+    case "near":
+      return node.children.some(hasWildcardTerm);
+    case "not":
+    case "field":
+      return hasWildcardTerm(node.child);
+    default:
+      return false;
+  }
+}
+
 function assertSupported(node: Node, insideNear = false, keyword = false): void {
   switch (node.type) {
     case "near":
@@ -147,6 +197,9 @@ function assertSupported(node: Node, insideNear = false, keyword = false): void 
       node.children.forEach((c) => assertSupported(c, true, keyword));
       return;
     case "field":
+      if (node.field === "stem" && hasWildcardTerm(node.child)) {
+        throw new QuerySyntaxError("Wildcards are not allowed with stem: a pattern has no stem to match");
+      }
       return assertSupported(node.child, insideNear, KEYWORD_FIELDS.has(node.field));
     case "and":
     case "not":
@@ -160,13 +213,21 @@ function assertSupported(node: Node, insideNear = false, keyword = false): void 
       return node.type === "and" ? node.children.forEach((c) => assertSupported(c, insideNear, keyword)) : assertSupported(node.child, insideNear, keyword);
     case "or":
       return node.children.forEach((c) => assertSupported(c, insideNear, keyword));
+    case "term":
+    case "phrase":
+      if (insideNear && node.boost !== undefined) throw new QuerySyntaxError("A boost (^n) is not allowed inside NEAR/PRE: interval rules carry no weight");
+      return;
+    case "range":
+      if (insideNear) throw new QuerySyntaxError("RANGE is not allowed inside NEAR; use terms, phrases, OR groups");
+      return;
     default:
       return;
   }
 }
 
-interface Prepared { art: DemoArticle; title: string[]; body: string[] }
-interface Ctx { fields: ("title" | "body")[]; keyword?: string }
+interface Prepared { art: DemoArticle; title: string[]; body: string[]; titleStem: string[]; bodyStem: string[] }
+interface Ctx { fields: ("title" | "body")[]; keyword?: string; stem?: boolean }
+const textOf = (d: Prepared, f: "title" | "body", stem?: boolean) => (stem ? (f === "title" ? d.titleStem : d.bodyStem) : d[f]);
 
 function matches(node: Node, d: Prepared, ctx: Ctx = { fields: ["title", "body"] }): boolean {
   switch (node.type) {
@@ -177,7 +238,7 @@ function matches(node: Node, d: Prepared, ctx: Ctx = { fields: ["title", "body"]
         const want = (ctx.keyword === "sourcecountry" && !hasWildcard(node.value) ? countryCode(node.value) : node.value).toLowerCase();
         return hasWildcard(want) ? new RegExp(`^${want.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i").test(have) : have === want;
       }
-      return ctx.fields.some((f) => leafSpans(d[f], node.value, node.type === "term", node.type === "phrase" ? node.slop : undefined).length > 0);
+      return ctx.fields.some((f) => leafSpans(textOf(d, f, ctx.stem), node.value, node.type === "term", node.type === "phrase" ? node.slop : undefined, ctx.stem).length > 0);
     }
     case "and":
       return node.children.every((c) => matches(c, d, ctx));
@@ -188,43 +249,74 @@ function matches(node: Node, d: Prepared, ctx: Ctx = { fields: ["title", "body"]
     case "field": {
       if (KEYWORD_FIELDS.has(node.field)) return matches(node.child, d, { fields: [], keyword: node.field });
       if (node.field === "author") return false; // snapshot has no author text
+      if (node.field === "stem") return matches(node.child, d, { fields: ["title", "body"], stem: true });
       const fields: ("title" | "body")[] = node.field === "title" ? ["title"] : node.field === "body" ? ["body"] : ["title", "body"];
       return matches(node.child, d, { fields });
     }
     case "near":
-      return ctx.fields.some((f) => spansOf(node, d[f]).length > 0);
+      return ctx.fields.some((f) => spansOf(node, textOf(d, f, ctx.stem), ctx.stem).length > 0);
+    case "range": {
+      const at = Date.parse(node.field === "fetched" ? d.art.fetched ?? d.art.published : d.art.published);
+      // A date without a time covers its whole UTC day, as the real engine's `||/d` rounding does.
+      const day = (s: string, end: boolean) => Date.parse(s) + (end && !s.includes("T") ? DAY - 1 : 0);
+      return (node.from === undefined || at >= day(node.from, false)) && (node.to === undefined || at <= day(node.to, true));
+    }
+  }
+}
+
+/** Boost-weighted hit count of the positive leaves of a query; each matching leaf adds boost x ln(1 + hits). */
+function relevance(node: Node, d: Prepared, fields: ("title" | "body")[] = ["title", "body"]): number {
+  switch (node.type) {
+    case "term":
+    case "phrase": {
+      const isTerm = node.type === "term";
+      const slop = node.type === "phrase" ? node.slop : undefined;
+      const weight = { title: 2, body: 1 };
+      const hits = fields.reduce((n, f) => n + weight[f] * leafSpans(d[f], node.value, isTerm, slop).length, 0);
+      return (node.boost ?? 1) * Math.log(1 + hits);
+    }
+    case "and":
+    case "or":
+      return node.children.reduce((sum, c) => sum + relevance(c, d, fields), 0);
+    case "field":
+      return KEYWORD_FIELDS.has(node.field) ? 0 : relevance(node.child, d, node.field === "title" ? ["title"] : node.field === "body" ? ["body"] : fields);
+    case "near":
+      return 1;
+    default:
+      return 0;
   }
 }
 
 /** Leaf terms to highlight: everything the query asks for, except what it excludes with NOT. */
-function highlightTerms(node: Node, out: { words: Set<string>; patterns: RegExp[] }, negated = false): void {
+interface Terms { words: Set<string>; patterns: RegExp[]; stems: Set<string> }
+function highlightTerms(node: Node, out: Terms, negated = false, stem = false): void {
   if (negated) return;
   switch (node.type) {
     case "term":
       if (hasWildcard(node.value)) out.patterns.push(wildcardRegex(node.value));
-      else tokens(node.value).forEach((w) => out.words.add(w));
+      else tokens(node.value).forEach((w) => (stem ? out.stems.add(stemToken(w)) : out.words.add(w)));
       return;
     case "phrase":
-      tokens(node.value).forEach((w) => out.words.add(w));
+      tokens(node.value).forEach((w) => (stem ? out.stems.add(stemToken(w)) : out.words.add(w)));
       return;
     case "not":
       return;
     case "field":
-      if (!KEYWORD_FIELDS.has(node.field)) highlightTerms(node.child, out);
+      if (!KEYWORD_FIELDS.has(node.field)) highlightTerms(node.child, out, false, stem || node.field === "stem");
       return;
     case "near":
     case "and":
     case "or":
-      node.children.forEach((c) => highlightTerms(c, out));
+      node.children.forEach((c) => highlightTerms(c, out, false, stem));
   }
 }
 
 function snippet(body: string, node: Node): string | undefined {
-  const terms = { words: new Set<string>(), patterns: [] as RegExp[] };
+  const terms: Terms = { words: new Set<string>(), patterns: [] as RegExp[], stems: new Set<string>() };
   highlightTerms(node, terms);
   const isHit = (w: string) => {
     const f = fold(w);
-    return terms.words.has(f) || terms.patterns.some((p) => p.test(f));
+    return terms.words.has(f) || terms.patterns.some((p) => p.test(f)) || (terms.stems.size > 0 && terms.stems.has(stemToken(f)));
   };
   const first = [...body.matchAll(WORDS)].find((m) => isHit(m[0]));
   if (!first) return undefined;
@@ -254,14 +346,19 @@ const chooseInterval = (spanDays: number): Interval => (spanDays <= 45 ? "day" :
 export class DemoIndex {
   private readonly docs: Prepared[];
   constructor(articles: DemoArticle[]) {
-    this.docs = articles.map((art) => ({ art, title: tokens(art.title), body: tokens(art.body) }));
+    this.docs = articles.map((art) => {
+      const title = tokens(art.title);
+      const body = tokens(art.body);
+      return { art, title, body, titleStem: title.map(stemToken), bodyStem: body.map(stemToken) };
+    });
   }
 
   /** Moves every date so the newest article is `now`: a snapshot taken last week still reads as live. */
   static shifted(articles: DemoArticle[], now: Date): DemoIndex {
     const newest = Math.max(...articles.map((a) => Date.parse(a.published)));
     const delta = now.getTime() - newest;
-    return new DemoIndex(articles.map((a) => ({ ...a, published: new Date(Date.parse(a.published) + delta).toISOString() })));
+    const move = (iso: string) => new Date(Date.parse(iso) + delta).toISOString();
+    return new DemoIndex(articles.map((a) => ({ ...a, published: move(a.published), ...(a.fetched && { fetched: move(a.fetched) }) })));
   }
 
   private base(p: SearchInput) {
@@ -298,7 +395,10 @@ export class DemoIndex {
     const { ast, pool } = this.base(p);
     const hits = pool.filter((d) => this.facetOk(d, p));
     const order = p.sort === "oldest" ? 1 : -1;
-    const sorted = [...hits].sort((a, b) => order * (Date.parse(a.art.published) - Date.parse(b.art.published)));
+    const newest = (a: Prepared, b: Prepared) => order * (Date.parse(a.art.published) - Date.parse(b.art.published));
+    // Not BM25: a boost-weighted hit count, title hits twice as strong. Enough to rank, not to match scores.
+    const score = new Map(hits.map((d) => [d, relevance(ast, d)]));
+    const sorted = [...hits].sort(p.sort === "relevance" ? (a, b) => score.get(b)! - score.get(a)! || newest(a, b) : newest);
 
     // time buckets over everything that matches, with empty buckets filled like a date histogram
     const times = hits.map((d) => Date.parse(d.art.published));

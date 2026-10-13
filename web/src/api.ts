@@ -65,7 +65,7 @@ export type FacetName = "sourcetype" | "sourcecountry" | "domain" | "lang";
 export type Facets = Record<FacetName, string[]>;
 
 export interface ResultsQuery extends Partial<Facets> {
-  sort?: "recent" | "oldest";
+  sort?: "recent" | "oldest" | "relevance";
   offset?: number;
   size?: number;
   from?: string;

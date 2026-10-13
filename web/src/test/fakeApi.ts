@@ -160,7 +160,8 @@ export function installFakeApi(init: Partial<FakeApiState> = {}) {
         const offset = Number(url.searchParams.get("offset") ?? 0);
         const size = Number(url.searchParams.get("size") ?? 25);
         const sort = url.searchParams.get("sort");
-        const ordered = [...all].sort((a, b) => (sort === "oldest" ? a.published.localeCompare(b.published) : b.published.localeCompare(a.published)));
+        // `relevance` keeps the fixture order: the fake has no scoring, the fixture says who is the best match.
+        const ordered = sort === "relevance" ? [...all] : [...all].sort((a, b) => (sort === "oldest" ? a.published.localeCompare(b.published) : b.published.localeCompare(a.published)));
         // Like the real API: day buckets for a short span, week (Monday start) or month for a long one.
         const times = all.map((r) => new Date(r.published).getTime());
         const spanDays = times.length ? (Math.max(...times) - Math.min(...times)) / 86_400_000 : 0;

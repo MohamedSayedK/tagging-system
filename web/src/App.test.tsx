@@ -147,6 +147,25 @@ describe("results list: untrusted article text and Arabic", () => {
 });
 
 describe("results list: sorting", () => {
+  it("offers Most relevant: asks the server for the best matches first and lists them as one ranked group", async () => {
+    const api = installFakeApi({
+      topics: [{ id: "1", name: "T", query: "x" }],
+      // fixture order is the relevance order: the oldest article is the best match
+      resultsByTopic: { "1": [article(5), article(9), article(7)] },
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "T" }));
+    await screen.findByRole("heading", { name: "3 results" });
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sort by" }), "Most relevant");
+
+    await waitFor(() => expect(titles()).toEqual(["Article 5", "Article 9", "Article 7"]));
+    expect(api.requests.some((r) => r.path.includes("/results") && r.path.includes("sort=relevance"))).toBe(true);
+    // one group instead of a heading per day, and each row says which day it is from
+    expect(screen.getAllByRole("group", { name: "Best matches first" })).toHaveLength(1);
+    expect(screen.getAllByTestId("time")[0]!.parentElement).toHaveTextContent(/\d{1,2} \w{3}/);
+  });
   it("lists the most recent first and re-sorts to oldest first on request", async () => {
     installFakeApi({
       topics: [{ id: "1", name: "T", query: "x" }],

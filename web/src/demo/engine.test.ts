@@ -46,7 +46,66 @@ describe("demo engine: same answers as the OpenSearch engine", () => {
     expect(ids("headline:weather")).toEqual(["3"]);
     expect(ids("content:programme")).toEqual(["2"]);
   });
-  it("field filters are case-insensitive", () => expect(ids("citizen AND sourcetype:BLOG AND sourcecountry:US")).toEqual(["2", "3"]));
+  it("publishedDate:[a TO b] covers whole days, and an open side reaches past the data", () => {
+    expect(ids("publishedDate:[2026-10-10 TO 2026-10-10]")).toEqual(["2", "3"]);
+    expect(ids("publishedDate:[2026-10-10T10:30:00Z TO *]")).toEqual(["3"]);
+    expect(ids("publishedDate:[* TO 2026-10-09] OR weather")).toEqual(["1", "3"]);
+    expect(ids("citizen AND publishedDate:[2026-10-10 TO *]")).toEqual(["2", "3"]);
+  });
+  it("harvestDate uses the harvest time when the article has one, else its publication date", () => {
+    const withHarvest = new DemoIndex([
+      doc("a", { title: "alpha", published: "2026-10-01T00:00:00Z", fetched: "2026-10-12T08:00:00Z" }),
+      doc("b", { title: "alpha", published: "2026-10-12T00:00:00Z" }),
+    ]);
+    const found = (q: string) => withHarvest.search({ query: q, size: 10 }).results.map((r) => r.id).sort();
+    expect(found("alpha AND harvestDate:[2026-10-12 TO 2026-10-12]")).toEqual(["a", "b"]);
+    expect(found("alpha AND publishedDate:[2026-10-12 TO 2026-10-12]")).toEqual(["b"]);
+  });
+  it("a date range inside NEAR is refused, as the real engine does", () => {
+    expect(() => index.search({ query: "citizen NEAR/3 harvestDate:[2026-10-01 TO *]" })).toThrow();
+  });
+  it("relevance sort puts boosted matches first and falls back to newest first on equal scores", () => {
+    const order = (q: string, sort: "relevance" | "recent") => index.search({ query: q, sort, size: 10 }).results.map((r) => r.id);
+    expect(order("programme^10 OR weather", "relevance")).toEqual(["2", "3"]);
+    expect(order("programme OR weather^10", "relevance")).toEqual(["3", "2"]);
+    expect(order("programme^10 OR weather", "recent")).toEqual(["3", "2"]);
+    expect(order("body:citizen", "relevance")).toEqual(["3", "2"]); // one hit each: same score, newest first
+  });
+  it("a boost inside NEAR is refused, as the real engine does", () => {
+    expect(() => index.search({ query: "citizen^2 NEAR/3 account" })).toThrow();
+  });  it("stem: finds other forms of a word that the exact search does not (light Arabic stemmer, English plurals)", () => {
+    // body 1 has "للمستفيدين" (for the beneficiaries); body 2 has "beneficiaries"
+    expect(ids("المستفيد")).toEqual([]);
+    expect(ids("stem:المستفيد")).toEqual(["1"]);
+    expect(ids("beneficiary")).toEqual([]);
+    expect(ids("stem:beneficiary")).toEqual(["2"]);
+    expect(ids("stem:beneficiaries AND sourcetype:blog")).toEqual(["2"]);
+    expect(ids('stem:"citizen accounts"')).toEqual(["2"]); // phrase: both words stemmed
+    expect(ids("stem:(citizens NEAR/3 account)")).toEqual(["2"]);
+  });
+  it("stem: unifies a word with and without its article and conjunction (وزير, الوزير, والوزير)", () => {
+    const words = new DemoIndex([
+      doc("a", { title: "قال الوزير", body: "" }),
+      doc("b", { title: "وزير المالية", body: "" }),
+      doc("c", { title: "تحدث والوزير", body: "" }),
+      doc("d", { title: "الميزانية", body: "" }),
+    ]);
+    const found = (q: string) => words.search({ query: q, size: 10 }).results.map((r) => r.id).sort();
+
+    expect(found("وزير")).toEqual(["b"]);
+    expect(found("stem:وزير")).toEqual(["a", "b", "c"]);
+    expect(found("stem:الوزير")).toEqual(["a", "b", "c"]);
+  });
+  it("stem: highlights the words as written, not their stems", () => {
+    const body = (q: string) => index.search({ query: q, size: 10 }).results[0]!.highlight?.body?.[0];
+
+    expect(body("stem:المستفيد")).toContain("<em>للمستفيدين</em>");
+    expect(body("stem:beneficiary")).toContain("<em>beneficiaries</em>");
+    expect(body("beneficiary OR programme")).not.toContain("<em>beneficiaries</em>"); // exact search leaves it alone
+  });
+  it("stem: refuses wildcards, as the real engine does", () => {
+    expect(() => index.search({ query: "stem:benef*" })).toThrow(/wildcard/i);
+  });  it("field filters are case-insensitive", () => expect(ids("citizen AND sourcetype:BLOG AND sourcecountry:US")).toEqual(["2", "3"]));
   it("NOT", () => expect(ids("citizen NOT weather")).toEqual(["2"]));
   it("wildcards", () => expect(ids("citiz*")).toEqual(["2", "3"]));
   it("title: only searches titles", () => expect(ids("title:weather")).toEqual(["3"]));

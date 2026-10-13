@@ -1,4 +1,4 @@
-﻿import { FacetName } from "./api";
+import { FacetName } from "./api";
 
 // Codes (ISO 3166 regions, BCP 47 languages) are shown by their English names. Unknown or malformed
 // codes fall back to the raw value rather than guessing.
@@ -42,6 +42,8 @@ const SOURCE_TYPES: Record<string, string> = {
   forum: "Forum",
   messageboard: "Message board",
 };
+/** The source type codes with hand-written names, lower case, for completing `sourcetype:`. */
+export const KNOWN_SOURCE_TYPES = Object.keys(SOURCE_TYPES);
 const FAMILIES: Record<string, string> = {
   onlinenews: "Online news",
   print: "Print",

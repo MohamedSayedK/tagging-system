@@ -1,12 +1,13 @@
 import { Fragment, useEffect, useState } from "react";
 import { createTopic, deleteTopic, FacetName, Facets, listSources, listTopics, ResultsPage, Topic, topicFacet, topicResults, updateTopic } from "./api";
 import { NO_FACETS } from "./facets";
+import { loadSaved, makeSaved, rangeOf, SavedFilter, storeSaved } from "./savedFilters";
 import { ColorPicker } from "./ColorPicker";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FilterBar } from "./FilterBar";
 import { FilterPanel } from "./FilterPanel";
 import { ErrorNotice, Loading } from "./Notices";
-import { QueryField, useQueryCheck } from "./QueryField";
+import { QueryField, QueryView, useQueryCheck } from "./QueryField";
 import { ResultsChart } from "./ResultsChart";
 import { Density, ResultsList } from "./ResultsList";
 import { RegistryPage } from "./RegistryPage";
@@ -40,10 +41,15 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
   const [query, setQuery] = useState("");
   const [exclude, setExclude] = useState("");
   const [color, setColor] = useState("");
-  const [sort, setSort] = useState<"recent" | "oldest">("recent");
+  const [sort, setSort] = useState<"recent" | "oldest" | "relevance">("recent");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [facets, setFacets] = useState<Facets>(NO_FACETS);
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(loadSaved);
+  const changeSaved = (next: SavedFilter[]) => {
+    setSavedFilters(next);
+    storeSaved(next);
+  };
   const [dedupe, setDedupe] = useState(false);
   const [view, setView] = useState<"topics" | "sources" | "registry">("topics");
   const [panelOpen, setPanelOpen] = useState(false);
@@ -185,9 +191,10 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
     <div className="results-tools">
       <label className="inline">
         Sort by
-        <select value={sort} onChange={(e) => setSort(e.target.value as "recent" | "oldest")}>
+        <select value={sort} onChange={(e) => setSort(e.target.value as "recent" | "oldest" | "relevance")}>
           <option value="recent">Most recent</option>
           <option value="oldest">Oldest first</option>
+          <option value="relevance">Most relevant</option>
         </select>
       </label>
       <div className="segmented" role="group" aria-label="Density">
@@ -271,6 +278,17 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
             now={now()}
             dedupe={dedupe}
             onDedupe={setDedupe}
+            saved={savedFilters}
+            onSave={(name) => changeSaved([...savedFilters, makeSaved(name, facets, dedupe, from, to, now())])}
+            onApply={(s) => {
+              const r = rangeOf(s, now());
+              setDrilledFrom(null);
+              setFacets(s.facets);
+              setDedupe(s.dedupe);
+              setFrom(r.from);
+              setTo(r.to);
+            }}
+            onDeleteSaved={(id) => changeSaved(savedFilters.filter((s) => s.id !== id))}
           />
           <div className="shell">
             <div className="rail">
@@ -324,10 +342,15 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
                       <h1 dir="auto">{selectedTopic?.name ?? "New topic"}</h1>
                     </div>
                     {selectedTopic && (
-                      <p className="topic-query">
-                        <code dir="auto">{selectedTopic.query}</code>
-                        {selectedTopic.exclude && <span> · excluding <code dir="auto">{selectedTopic.exclude}</code></span>}
-                      </p>
+                      <div className="topic-query">
+                        <QueryView query={selectedTopic.query} />
+                        {selectedTopic.exclude && (
+                          <div className="topic-exclude">
+                            Excluding
+                            <QueryView query={selectedTopic.exclude} />
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="topic-actions">
@@ -346,7 +369,7 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
                     Topic name
                     <input dir="auto" value={name} onChange={(e) => setName(e.target.value)} />
                   </label>
-                  <QueryField label="Topic query" value={query} onChange={setQuery} check={queryCheck} />
+                  <QueryField label="Topic query" value={query} onChange={setQuery} check={queryCheck} formattable />
                   <QueryField label="Exclude from topic" value={exclude} onChange={setExclude} check={excludeCheck} />
                   <ColorPicker value={color} onChange={setColor} />
                   <button type="button" className="primary save" disabled={!canSave} onClick={save}>
@@ -384,7 +407,7 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
                       setTo(t);
                     }}
                   />
-                  <ResultsList total={loaded.total} results={loaded.results} density={density} now={now()} toolbar={toolbar} />
+                  <ResultsList total={loaded.total} results={loaded.results} density={density} now={now()} toolbar={toolbar} ranked={sort === "relevance"} />
                   {moreError && <ErrorNotice title={moreError} />}
                   {loaded.results.length < loaded.total && (
                     <button type="button" className="more" disabled={loadingMore} onClick={() => loadMore(loaded)}>
