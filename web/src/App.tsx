@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { createTopic, deleteTopic, FacetName, Facets, listSources, listTopics, ResultsPage, Topic, topicFacet, topicResults, updateTopic } from "./api";
 import { NO_FACETS } from "./facets";
+import { explainResult } from "./api";
 import { loadSaved, makeSaved, rangeOf, SavedFilter, storeSaved } from "./savedFilters";
 import { ColorPicker } from "./ColorPicker";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -407,7 +408,7 @@ export function App({ now = () => new Date() }: { now?: () => Date }) {
                       setTo(t);
                     }}
                   />
-                  <ResultsList total={loaded.total} results={loaded.results} density={density} now={now()} toolbar={toolbar} ranked={sort === "relevance"} />
+                  <ResultsList total={loaded.total} results={loaded.results} density={density} now={now()} toolbar={toolbar} ranked={sort === "relevance"} explain={selectedId ? (id) => explainResult(selectedId, id) : undefined} />
                   {moreError && <ErrorNotice title={moreError} />}
                   {loaded.results.length < loaded.total && (
                     <button type="button" className="more" disabled={loadingMore} onClick={() => loadMore(loaded)}>

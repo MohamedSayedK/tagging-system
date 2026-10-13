@@ -103,6 +103,21 @@ describe("demo engine: same answers as the OpenSearch engine", () => {
     expect(body("stem:beneficiary")).toContain("<em>beneficiaries</em>");
     expect(body("beneficiary OR programme")).not.toContain("<em>beneficiaries</em>"); // exact search leaves it alone
   });
+  it("explains which clauses of a query matched one article, like the real engine", () => {
+    const tree = index.explain({ query: "(citizen OR حساب OR weather) AND NOT programme AND title:account", id: "2" })!;
+
+    const flat = (n: any): [string, boolean][] => [[n.label, n.matched], ...n.children.flatMap(flat)];
+    const by = Object.fromEntries(flat(tree));
+    expect(by["citizen"]).toBe(true);
+    expect(by["حساب"]).toBe(false);
+    expect(by["weather"]).toBe(false);
+    expect(by["citizen OR حساب OR weather"]).toBe(true);
+    expect(by["NOT programme"]).toBe(false);
+    expect(by["title:account"]).toBe(true);
+    expect(tree.matched).toBe(false);
+    expect(index.explain({ query: "citizen", exclude: "programme", id: "2" })).toMatchObject({ matched: true, excluded: true });
+    expect(index.explain({ query: "citizen", id: "nope" })).toBeNull();
+  });
   it("stem: refuses wildcards, as the real engine does", () => {
     expect(() => index.search({ query: "stem:benef*" })).toThrow(/wildcard/i);
   });  it("field filters are case-insensitive", () => expect(ids("citizen AND sourcetype:BLOG AND sourcecountry:US")).toEqual(["2", "3"]));

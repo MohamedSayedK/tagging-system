@@ -1,6 +1,6 @@
 // In-browser search over a bundled snapshot, answering like the OpenSearch-backed API so the public demo
 // is the real UI on real (crawled) data with no server. Parsing is the project's own pure parser.
-import { countryCode, Node, parse, QuerySyntaxError } from "../../../src/query/index.js";
+import { countryCode, Node, parse, QuerySyntaxError, unparse } from "../../../src/query/index.js";
 
 export interface DemoArticle {
   id: string;
@@ -32,6 +32,7 @@ export interface SearchInput {
   lang?: string | string[];
 }
 export type FacetName = "sourcetype" | "sourcecountry" | "domain" | "lang";
+export interface ExplainedClause { kind: string; label: string; matched: boolean; children: ExplainedClause[]; excluded?: boolean }
 export interface Bucket { key: string; count: number }
 type Interval = "day" | "week" | "month";
 
@@ -229,6 +230,14 @@ interface Prepared { art: DemoArticle; title: string[]; body: string[]; titleSte
 interface Ctx { fields: ("title" | "body")[]; keyword?: string; stem?: boolean }
 const textOf = (d: Prepared, f: "title" | "body", stem?: boolean) => (stem ? (f === "title" ? d.titleStem : d.bodyStem) : d[f]);
 
+/** Where a `field:` prefix points the search; null when the snapshot has nothing there (it keeps no author text). */
+function fieldCtx(field: string): Ctx | null {
+  if (KEYWORD_FIELDS.has(field)) return { fields: [], keyword: field };
+  if (field === "author") return null;
+  if (field === "stem") return { fields: ["title", "body"], stem: true };
+  return { fields: field === "title" ? ["title"] : field === "body" ? ["body"] : ["title", "body"] };
+}
+
 function matches(node: Node, d: Prepared, ctx: Ctx = { fields: ["title", "body"] }): boolean {
   switch (node.type) {
     case "term":
@@ -247,11 +256,8 @@ function matches(node: Node, d: Prepared, ctx: Ctx = { fields: ["title", "body"]
     case "not":
       return !matches(node.child, d, ctx);
     case "field": {
-      if (KEYWORD_FIELDS.has(node.field)) return matches(node.child, d, { fields: [], keyword: node.field });
-      if (node.field === "author") return false; // snapshot has no author text
-      if (node.field === "stem") return matches(node.child, d, { fields: ["title", "body"], stem: true });
-      const fields: ("title" | "body")[] = node.field === "title" ? ["title"] : node.field === "body" ? ["body"] : ["title", "body"];
-      return matches(node.child, d, { fields });
+      const inner = fieldCtx(node.field);
+      return inner ? matches(node.child, d, inner) : false;
     }
     case "near":
       return ctx.fields.some((f) => spansOf(node, textOf(d, f, ctx.stem), ctx.stem).length > 0);
@@ -431,6 +437,37 @@ export class DemoIndex {
         languages: facet("lang"),
       },
     };
+  }
+
+  /** Which clauses of a query match one article, shaped like GET /topics/:id/explain/:articleId; null for an unknown id. */
+  explain(p: { query: string; exclude?: string; id: string }): ExplainedClause | null {
+    const d = this.docs.find((x) => x.art.id === p.id);
+    if (!d) return null;
+    const ast = parse(p.query);
+    assertSupported(ast);
+    const walk = (n: Node, ctx: Ctx): ExplainedClause => {
+      const base = { kind: n.type, label: unparse(n), matched: matches(n, d, ctx) };
+      switch (n.type) {
+        case "and":
+        case "or":
+          return { ...base, children: n.children.map((c) => walk(c, ctx)) };
+        case "not":
+          return { ...base, children: [walk(n.child, ctx)] };
+        case "field": {
+          const inner = fieldCtx(n.field);
+          return { ...base, children: inner ? [walk(n.child, inner)] : [] };
+        }
+        default:
+          return { ...base, children: [] };
+      }
+    };
+    const tree = walk(ast, { fields: ["title", "body"] });
+    if (p.exclude?.trim()) {
+      const excl = parse(p.exclude);
+      assertSupported(excl);
+      tree.excluded = matches(excl, d);
+    }
+    return tree;
   }
 
   facetValues(p: SearchInput & { facet: FacetName; q?: string }): Bucket[] {

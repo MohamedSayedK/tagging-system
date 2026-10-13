@@ -151,3 +151,17 @@ export async function validateQuery(query: string): Promise<QueryCheck> {
   }
 }
 
+
+/** One clause of a topic's query and whether it matches a given article (GET /topics/:id/explain/:articleId). */
+export interface Explanation {
+  kind: string;
+  label: string;
+  matched: boolean;
+  children: Explanation[];
+  /** Top clause only: the topic's exclude query takes this article out again. */
+  excluded?: boolean;
+}
+
+export function explainResult(topicId: string, articleId: string) {
+  return request<Explanation>(`/topics/${encodeURIComponent(topicId)}/explain/${encodeURIComponent(articleId)}`);
+}

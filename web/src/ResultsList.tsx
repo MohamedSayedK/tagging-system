@@ -1,5 +1,7 @@
 import { Fragment, ReactNode } from "react";
-import { Result } from "./api";
+import { useState } from "react";
+import { Explanation, Result } from "./api";
+import { WhyMatched } from "./WhyMatched";
 import { articlesCount, dayLabel, timeLabel } from "./dayFormat";
 import { OpenIcon } from "./Icons";
 import { countryName, languageName } from "./names";
@@ -36,7 +38,8 @@ function byDay(results: Result[], ranked: boolean): { day: string; items: Result
 
 const RANKED = "ranked";
 
-export function ResultsList({ total, results, density, now, toolbar, ranked = false }: { total: number; results: Result[]; density: Density; now: Date; toolbar?: ReactNode; ranked?: boolean }) {
+export function ResultsList({ total, results, density, now, toolbar, ranked = false, explain }: { total: number; results: Result[]; density: Density; now: Date; toolbar?: ReactNode; ranked?: boolean; /** Loads the clause-by-clause reason one result matched; omitted where there is no topic to explain against. */ explain?: (articleId: string) => Promise<Explanation> }) {
+  const [explained, setExplained] = useState<string | null>(null);
   return (
     <section aria-label="Results" className="rundown">
       <header className="rundown-head">
@@ -75,6 +78,20 @@ export function ResultsList({ total, results, density, now, toolbar, ranked = fa
                       <p dir="auto" className="excerpt">
                         <Highlighted html={r.highlight.body[0]} />
                       </p>
+                    )}
+                    {explain && (
+                      <>
+                        <button
+                          type="button"
+                          className="link why-toggle"
+                          aria-expanded={explained === r.id}
+                          aria-label={`Why “${r.title}” matched`}
+                          onClick={() => setExplained(explained === r.id ? null : r.id)}
+                        >
+                          Why this matched
+                        </button>
+                        {explained === r.id && <WhyMatched key={r.id} load={() => explain(r.id)} />}
+                      </>
                     )}
                   </div>
                   <div className="rundown-source">

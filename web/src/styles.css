@@ -552,3 +552,15 @@ mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 3
 .saved-filters input { font: 400 14px var(--ui); padding: 4px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--field); color: var(--ink); }
 .chip.saved .apply { display: inline; width: auto; height: auto; padding: 0 4px; border-radius: 6px; font-size: inherit; font-weight: 600; cursor: pointer; }
 .chip.saved .apply::before { content: none; }
+
+.why-toggle { margin-top: 6px; font-size: 14px; }
+.why { margin: 8px 0 4px; padding: 10px 14px; background: var(--wash); border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+.why p { margin: 0 0 6px; color: var(--muted); }
+.why ul { list-style: none; margin: 0; padding-inline-start: 18px; }
+.why > ul { padding-inline-start: 0; }
+.why-clause { margin: 3px 0; }
+.why-mark { display: inline-block; width: 1.2em; font-weight: 700; color: var(--muted); }
+.why-clause[data-matched="true"] > .why-mark { color: var(--ok); }
+.why code { background: transparent; padding: 0; }
+.why-clause[data-matched="false"] > code { color: var(--muted); }
+.why details { margin: 2px 0 0 1.2em; color: var(--muted); }

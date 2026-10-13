@@ -217,3 +217,17 @@ describe("demo API: the same routes as the server", () => {
     expect((await (await fetch("/api/topics")).json()).map((t: any) => t.name)).toContain("A");
   });
 });
+describe("explain route", () => {
+  it("answers which clauses of the topic's query matched an article, and 404s for unknown ones", async () => {
+    const { call } = setup();
+    const topics = await call("GET", "/topics");
+    const id = topics.json[0].id;
+
+    const ok = await call("GET", `/topics/${id}/explain/1`);
+    expect(ok.status).toBe(200);
+    expect(ok.json).toMatchObject({ kind: "near", label: "budget NEAR/5 deficit", matched: true });
+
+    expect((await call("GET", `/topics/${id}/explain/nope`)).status).toBe(404);
+    expect((await call("GET", "/topics/nope/explain/1")).status).toBe(404);
+  });
+});

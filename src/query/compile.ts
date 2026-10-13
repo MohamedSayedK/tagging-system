@@ -1,5 +1,6 @@
 import { Node, QuerySyntaxError } from "./ast.js";
 import { parse } from "./parser.js";
+import { unparse } from "./unparse.js";
 
 type Dsl = Record<string, unknown>;
 
@@ -152,4 +153,38 @@ export function compileAst(ast: Node): Dsl {
 
 export function compileQuery(q: string): Dsl {
   return compileAst(parse(q));
+}
+
+/** One clause of a query, with the query that tests just that clause against an article. */
+export interface ExplainNode {
+  kind: Node["type"];
+  /** The clause written as query text. */
+  label: string;
+  dsl: Dsl;
+  children: ExplainNode[];
+}
+
+/**
+ * A query broken into its clauses (AND/OR groups, NOT, fields and the leaves), each compiled on its own with the
+ * field context it sits in. Used to answer "which part of the query matched this article?". NEAR and ranges are
+ * leaves: their operands cannot be tested apart from the proximity rule.
+ */
+export function explainTree(ast: Node): ExplainNode {
+  const walk = (n: Node, ctx: Ctx): ExplainNode => {
+    const base = { kind: n.type, label: unparse(n), dsl: compileNode(n, ctx) };
+    switch (n.type) {
+      case "and":
+      case "or":
+        return { ...base, children: n.children.map((c) => walk(c, ctx)) };
+      case "not":
+        return { ...base, children: [walk(n.child, ctx)] };
+      case "field": {
+        const spec = FIELD_MAP[n.field];
+        return { ...base, children: spec ? [walk(n.child, spec)] : [] };
+      }
+      default:
+        return { ...base, children: [] };
+    }
+  };
+  return walk(ast, DEFAULT_CTX);
 }

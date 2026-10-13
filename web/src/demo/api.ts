@@ -229,6 +229,14 @@ export function createDemoFetch(
       return json(200, index.facetValues({ ...searchParams(q, topic), facet: facet![2] as FacetName, q: q.get("q") ?? "" }));
     }
 
+    const explain = /^\/topics\/([^/]+)\/explain\/([^/]+)$/.exec(path);
+    if (method === "GET" && explain) {
+      const topic = load().find((t) => t.id === explain[1]);
+      if (!topic) return json(404, { error: "not_found" });
+      const why = index.explain({ query: topic.query, exclude: topic.exclude, id: decodeURIComponent(explain[2]!) });
+      return why ? json(200, why) : json(404, { error: "not_found" });
+    }
+
     return json(404, { error: "not_found" });
   }
 

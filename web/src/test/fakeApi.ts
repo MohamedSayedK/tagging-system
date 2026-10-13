@@ -39,6 +39,8 @@ export interface FakeApiState {
   registry: FakeRegistryRecord[];
   topics: FakeTopic[];
   resultsByTopic: Record<string, FakeResult[]>;
+  /** Explanations by article id, as GET /topics/:id/explain/:articleId answers them. */
+  explanations: Record<string, unknown>;
   requests: { method: string; path: string; body?: any }[];
 }
 
@@ -52,6 +54,7 @@ export function installFakeApi(init: Partial<FakeApiState> = {}) {
     registry: [],
     topics: [],
     resultsByTopic: {},
+    explanations: {},
     requests: [],
     failNext: (pattern, o = {}) => void rules.push({ pattern, times: o.times ?? 1, kind: "fail", status: o.status ?? 500, message: o.message }),
     networkDownNext: (pattern) => void rules.push({ pattern, times: 1, kind: "network" }),
@@ -152,6 +155,12 @@ export function installFakeApi(init: Partial<FakeApiState> = {}) {
         const { countBy } = scoped(facetRoute[1]!);
         const size = Number(url.searchParams.get("size") ?? 20);
         return json(200, countBy(facetRoute[2] as any, url.searchParams.get("q") ?? "").slice(0, size));
+      }
+
+      const explain = /^\/topics\/([^/]+)\/explain\/([^/]+)$/.exec(path);
+      if (method === "GET" && explain) {
+        const found = state.explanations[decodeURIComponent(explain[2]!)];
+        return found ? json(200, found) : json(404, { error: "not_found" });
       }
 
       const results = /^\/topics\/([^/]+)\/results$/.exec(path);

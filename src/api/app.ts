@@ -10,6 +10,7 @@ import { openSearchPromotions } from "../search/promotionStore.js";
 import { openSearchStore } from "../ingest/runStore.js";
 import { client, ensureIndices, INDEX, REGISTRY_INDEX, TOPICS_INDEX } from "../search/index-def.js";
 import { searchRegistry } from "../search/registrySearch.js";
+import { explainMatch } from "../search/explain.js";
 import { facetValues, isFacetName, search, SearchParams } from "../search/search.js";
 
 const STUCK_AFTER = 3;
@@ -144,6 +145,16 @@ export async function buildApp(opts: AppOptions = {}) {
       return search({ ...req.query, query: t.query, exclude: t.exclude ?? undefined });
     },
   );
+
+  // Which clauses of the topic's query matched one article ("why is this here?").
+  app.get<{ Params: { id: string; articleId: string } }>("/topics/:id/explain/:articleId", async (req, reply) => {
+    const got = await client.get({ index: TOPICS_INDEX, id: req.params.id }, { ignore: [404] });
+    if (!got.body.found) return reply.code(404).send({ error: "not_found" });
+    const exists = await client.exists({ index: INDEX, id: req.params.articleId });
+    if (!exists.body) return reply.code(404).send({ error: "not_found" });
+    const t = got.body._source as Topic;
+    return explainMatch({ query: t.query, exclude: t.exclude ?? undefined, id: req.params.articleId });
+  });
 
   // Configured sources with the outcome of their latest crawl.
   app.get("/sources", async () => {

@@ -80,3 +80,8 @@ None: no open row has gone two sessions untouched.
 ## Addendum 7: stem highlights
 
 - Server highlights also read `title.stem` / `body.stem`; exact highlights win, stem ones are shown as the title/body ones (`withStemHighlights` in `search.ts`). Demo engine highlights words whose stem matches. 485 tests pass.
+
+## Addendum 8: why this matched (2026-10-14)
+
+- Work was committed on branch `feature/editor-search-ingestion` (four commits, not pushed, not merged) before this; the explain work is on top of it.
+- D-041: `explainTree` + `unparse` (pure, `src/query`), `explainMatch` (msearch of every clause against one article), `GET /topics/:id/explain/:articleId`, `WhyMatched` in the results list, demo engine route. 497 tests pass.

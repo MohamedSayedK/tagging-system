@@ -135,6 +135,24 @@ describe("topics API", () => {
     expect(single.json().results.map((r: any) => r.id)).toEqual(["f2"]);
   });
 
+  it("explains which clauses of a topic's query matched one article, and 404s for unknown topics or articles", async () => {
+    await client.index({ index: INDEX, id: "x1", refresh: true, body: { title: "okapi sighting", body: "an okapi was seen near the river", domain: "x.com", sourcetype: "blog", published: "2026-10-10T10:00:00Z" } });
+    const topic = (await post("/topics", { name: "Okapi", query: "(okapi OR giraffe) AND NOT zebra", exclude: "river" })).json();
+
+    const res = await app.inject({ method: "GET", url: `/topics/${topic.id}/explain/x1` });
+
+    expect(res.statusCode).toBe(200);
+    const tree = res.json();
+    expect(tree).toMatchObject({ kind: "and", matched: true, excluded: true });
+    expect(tree.children[0]).toMatchObject({ label: "okapi OR giraffe", matched: true });
+    expect(tree.children[0].children.map((c: any) => [c.label, c.matched])).toEqual([["okapi", true], ["giraffe", false]]);
+    expect(tree.children[1]).toMatchObject({ label: "NOT zebra", matched: true });
+    expect(tree.children[0]).not.toHaveProperty("dsl");
+
+    expect((await app.inject({ method: "GET", url: "/topics/nope/explain/x1" })).statusCode).toBe(404);
+    expect((await app.inject({ method: "GET", url: `/topics/${topic.id}/explain/missing` })).statusCode).toBe(404);
+  });
+
   it("lists the values of one facet for a topic, searchable and under the other filters", async () => {
     await client.bulk({
       refresh: true,

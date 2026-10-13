@@ -94,6 +94,7 @@ Precedence: `OR` < `AND`/`NOT` < `NEAR`/`PRE` < `field:`. Operators must be UPPE
 
 ## API
 
+- `GET /topics/:id/explain/:articleId` → the topic's query as a tree of clauses, each with `matched` (and `excluded` on the top clause when the exclude query removes the article); backs "Why this matched" in the results list
 - `POST /query/validate` `{query}` → AST + OpenSearch DSL, or 400 with position
 - `POST /search` `{query, exclude?, from?, to?, sort?: recent|oldest|relevance, offset?, size?, interval?: hour|day|week|month, sourcetype?, sourcecountry?, domain?}` → results, highlights, aggregations (over time, source types, countries, domains). Facet filters take one value or an array (`GET /topics/:id/results?sourcetype=a&sourcetype=b`): OR within a facet, AND across facets. Each facet's own options ignore its own filter so more values can be added.
 - `GET /registry?lang&q&hideAggregators&from&size` → `{total, items:[{domain, firstSeen, lastSeen, articleCount, languages, country?, aggregator, crawl?}]}`: domains the registry has seen (see "Source registry")

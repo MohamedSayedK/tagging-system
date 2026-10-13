@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 process.env.ARTICLES_INDEX = "articles_test";
 const { client, ensureIndices, INDEX } = await import("../src/search/index-def.js");
 const { search } = await import("../src/search/search.js");
+const { explainMatch } = await import("../src/search/explain.js");
 
 const docs = [
   { id: "1", title: "حساب المواطن يعلن موعد الدعم", body: "أعلن برنامج حساب المواطن عن موعد صرف الدعم للمستفيدين في السعودية", source: "A", domain: "a.sa", sourcetype: "onlinenews_newspaper", sourcecountry: "sa", lang: "ar", published: "2026-10-09T10:00:00Z" },
@@ -44,7 +45,28 @@ describe("search against OpenSearch", () => {
     expect(await ids("beneficiary")).toEqual([]);
     expect(await ids("stem:beneficiary")).toEqual(["2"]);
     expect(await ids("stem:beneficiaries AND sourcetype:blog")).toEqual(["2"]);
-  });  it("stem: highlights the words as written in the article, not the stem", async () => {
+  });  it("explains which clauses of a query matched one article", async () => {
+    const tree = await explainMatch({ query: "(citizen OR ماليه OR weather) AND NOT programme AND title:account", id: "2" });
+
+    const flat = (n: any): [string, boolean][] => [[n.label, n.matched], ...n.children.flatMap(flat)];
+    const byLabel = Object.fromEntries(flat(tree));
+    expect(byLabel["citizen"]).toBe(true);
+    expect(byLabel["ماليه"]).toBe(false);
+    expect(byLabel["weather"]).toBe(false);
+    expect(byLabel["citizen OR ماليه OR weather"]).toBe(true);
+    expect(byLabel["NOT programme"]).toBe(false); // article 2 mentions the programme, so this clause is why it fails
+    expect(byLabel["title:account"]).toBe(true);
+    expect(tree.matched).toBe(false);
+  });
+
+  it("explains a match that includes a NEAR clause and the exclude query", async () => {
+    const tree = await explainMatch({ query: "citizen NEAR/3 account", exclude: "weather", id: "2" });
+
+    expect(tree).toMatchObject({ kind: "near", matched: true, children: [], excluded: false });
+    expect(await explainMatch({ query: "citizen", exclude: "programme", id: "2" })).toMatchObject({ matched: true, excluded: true });
+  });
+
+  it("stem: highlights the words as written in the article, not the stem", async () => {
     const [hit] = (await search({ query: "stem:المستفيد" })).results as any[];
     expect(hit.highlight.body[0]).toContain("<em>للمستفيدين</em>");
 
