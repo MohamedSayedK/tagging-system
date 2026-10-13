@@ -37,6 +37,8 @@ const OPERATORS: { name: string; detail: string }[] = [
   { name: "NOT", detail: "exclude what follows" },
   { name: "NEAR/", detail: "within n words, any order: a NEAR/5 b" },
   { name: "PRE/", detail: "within n words, in order: a PRE/5 b" },
+  { name: "START/", detail: "in the headline or first n words: START/20:term" },
+  { name: "MULTIPLE/", detail: "at least n times in the body (2 to 10): MULTIPLE/3:term" },
 ];
 const LANGUAGES = ["ar", "en", "fr", "tr", "fa", "he", "ur"];
 const BOUNDARY = /[\s()"“”]/;

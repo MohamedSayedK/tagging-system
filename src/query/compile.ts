@@ -5,6 +5,8 @@ import { unparse } from "./unparse.js";
 type Dsl = Record<string, unknown>;
 
 const TEXT_FIELDS = ["title", "body"];
+// The word the `body.start` field puts in front of every body (see the index mapping).
+const START_MARKER = "zzbodystartzz";
 // Stored country codes are ISO 3166 alpha-2; queries may use English country names ("Saudi Arabia").
 let countryCodes: Map<string, string> | undefined;
 export function countryCode(value: string): string {
@@ -100,6 +102,39 @@ function compileNode(n: Node, ctx: Ctx): Dsl {
       const edge = (d: string) => (d.includes("T") ? d : `${d}||/d`);
       return { range: { [n.field]: { ...(n.from && { gte: edge(n.from) }), ...(n.to && { lte: edge(n.to) }) } } };
     }
+    case "start":
+    case "multiple": {
+      const text = ctx.fields === TEXT_FIELDS;
+      if (ctx.keyword || ctx.stem || !text) {
+        throw new QuerySyntaxError(`${n.type.toUpperCase()} works on the headline and body text only, not inside a field prefix such as title: or stem:`);
+      }
+      const operand = toInterval(n.child); // also what refuses AND, NOT and fields inside the operand
+      if (n.type === "multiple") {
+        // n separate matches of the operand anywhere in the body; intervals count repeats of one source apart
+        return { intervals: { body: { all_of: { ordered: false, intervals: Array.from({ length: n.n }, () => operand) } } } };
+      }
+      // The first n words of the body: `body.start` is the body with a marker word in front, so "starts within
+      // the first n words" is "at most n-1 words between the marker and the operand".
+      return {
+        bool: {
+          should: [
+            compileNode(n.child, { fields: ["title"], keyword: false }),
+            {
+              intervals: {
+                "body.start": {
+                  all_of: {
+                    ordered: true,
+                    max_gaps: n.n - 1,
+                    intervals: [withPlainAnalyzer({ match: { query: START_MARKER, max_gaps: 0, ordered: true } }), withPlainAnalyzer(operand)],
+                  },
+                },
+              },
+            },
+          ],
+          minimum_should_match: 1,
+        },
+      };
+    }
     case "near": {
       if (ctx.keyword) throw new QuerySyntaxError("NEAR is not allowed on keyword fields");
       return any(ctx.fields.map((f) => ({ intervals: { [f]: toInterval(n) } })));
@@ -131,7 +166,7 @@ function toInterval(n: Node): Dsl {
       const positives = n.children.filter((c) => c.type !== "not");
       const negatives = n.children.flatMap((c) => (c.type === "not" ? [c.child] : []));
       if (positives.length !== 1 || negatives.length === 0) {
-        throw new QuerySyntaxError("AND is not allowed inside NEAR; use terms, phrases, OR groups, or `term NOT (...)`");
+        throw new QuerySyntaxError("AND is not allowed inside NEAR, START or MULTIPLE; use terms, phrases, OR groups, or `term NOT (...)`");
       }
       const excluded = negatives.map(toInterval);
       return {
@@ -143,8 +178,21 @@ function toInterval(n: Node): Dsl {
       };
     }
     default:
-      throw new QuerySyntaxError(`${n.type.toUpperCase()} is not allowed inside NEAR; use terms, phrases, OR groups`);
+      throw new QuerySyntaxError(`${n.type.toUpperCase()} is not allowed inside NEAR, START or MULTIPLE; use terms, phrases, OR groups`);
   }
+}
+
+// `body.start` puts the marker word in front of every text it analyzes, query text included; match rules on it
+// are analysed with the plain body analyzer so the operand is not preceded by a second marker.
+function withPlainAnalyzer(rule: Dsl): Dsl {
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") {
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, k === "match" && x && typeof x === "object" ? { ...(walk(x) as object), analyzer: "news_text" } : walk(x)]));
+    }
+    return v;
+  };
+  return walk(rule) as Dsl;
 }
 
 export function compileAst(ast: Node): Dsl {

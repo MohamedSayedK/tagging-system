@@ -191,8 +191,13 @@ function hasWildcardTerm(node: Node): boolean {
   }
 }
 
-function assertSupported(node: Node, insideNear = false, keyword = false): void {
+function assertSupported(node: Node, insideNear = false, keyword = false, stem = false): void {
   switch (node.type) {
+    case "start":
+    case "multiple":
+      if (keyword || stem) throw new QuerySyntaxError(`${node.type.toUpperCase()} works on the headline and body text only, not inside a field prefix such as title: or stem:`);
+      if (insideNear) throw new QuerySyntaxError(`${node.type.toUpperCase()} is not allowed inside NEAR, START or MULTIPLE; use terms, phrases, OR groups`);
+      return assertSupported(node.child, true, false);
     case "near":
       if (keyword) throw new QuerySyntaxError("NEAR is not allowed on keyword fields");
       node.children.forEach((c) => assertSupported(c, true, keyword));
@@ -201,7 +206,7 @@ function assertSupported(node: Node, insideNear = false, keyword = false): void 
       if (node.field === "stem" && hasWildcardTerm(node.child)) {
         throw new QuerySyntaxError("Wildcards are not allowed with stem: a pattern has no stem to match");
       }
-      return assertSupported(node.child, insideNear, KEYWORD_FIELDS.has(node.field));
+      return assertSupported(node.child, insideNear, KEYWORD_FIELDS.has(node.field), node.field === "stem");
     case "and":
     case "not":
       if (insideNear && node.type === "and") {
@@ -261,6 +266,11 @@ function matches(node: Node, d: Prepared, ctx: Ctx = { fields: ["title", "body"]
     }
     case "near":
       return ctx.fields.some((f) => spansOf(node, textOf(d, f, ctx.stem), ctx.stem).length > 0);
+    case "start":
+      // the headline, or an occurrence that begins within the first n words of the body
+      return matches(node.child, d, { fields: ["title"] }) || spansOf(node.child, d.body).some(([s]) => s < node.n);
+    case "multiple":
+      return spansOf(node.child, d.body).length >= node.n;
     case "range": {
       const at = Date.parse(node.field === "fetched" ? d.art.fetched ?? d.art.published : d.art.published);
       // A date without a time covers its whole UTC day, as the real engine's `||/d` rounding does.
@@ -309,6 +319,10 @@ function highlightTerms(node: Node, out: Terms, negated = false, stem = false): 
       return;
     case "field":
       if (!KEYWORD_FIELDS.has(node.field)) highlightTerms(node.child, out, false, stem || node.field === "stem");
+      return;
+    case "start":
+    case "multiple":
+      highlightTerms(node.child, out, false, stem);
       return;
     case "near":
     case "and":

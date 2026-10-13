@@ -80,13 +80,15 @@ Open http://127.0.0.1:3000. Put a TLS-terminating reverse proxy in front before 
 | `"exact phrase"` | phrase |
 | `"john kennedy"~2` | phrase whose words may be up to 2 positions apart (Newsdesk's `~n`); also `title:"…"~3` |
 | `a PRE/5 b` | like `NEAR/5` but `a` must come before `b` (Newsdesk's `PRE/n`) |
+| `START/20:budget`, `START/10:(a OR b)`, `START/5:"a b"` | the operand is in the headline or begins within the first n words of the body (n at least 1). Terms, phrases and OR groups only; not inside `title:`/`stem:` or `NEAR` |
+| `MULTIPLE/3:budget`, `MULTIPLE/2:(a OR b)` | at least n separate occurrences of the operand in the body (n from 2 to 10); the headline does not count. Same operand rules as `START` |
 | `a NEAR/8 b` | within 8 words, any order; operands: terms, phrases, OR groups, nested NEAR, and `term NOT (phrases)` (occurrences of the term outside those phrases) |
 | `acc*`, `a?c` | wildcard (single terms) |
 | `title:x`, `body:x`, `author:x` | text fields; Newsdesk's `headline:`, `content:` and `byline:` are accepted too |
 | `sourcetype:BLOG`, `sourcecountry:sa` or `sourceCountry:"Saudi Arabia"`, `lang:ar`, `domain:bbc.com`, `authorshort:x`, `source:"Arab News"` | exact (case-insensitive); country accepts an English name or a two-letter code, unknown names are an error |
 | `authorContains:Jadaan` (alias of `author:`) | author text contains the word |
 | `title:(a OR b)` | field applied to a group |
-| `stem:المستفيد`, `stem:"citizen accounts"`, `stem:(a NEAR/5 b)` | opt-in stemmed search of title and body: `المستفيد` also finds `للمستفيدين`, `beneficiary` also finds `beneficiaries`. Wildcards are refused. After upgrading an existing index, run `npm run reindex:stem` once so old articles are covered |
+| `stem:المستفيد`, `stem:"citizen accounts"`, `stem:(a NEAR/5 b)` | opt-in stemmed search of title and body: `المستفيد` also finds `للمستفيدين`, `beneficiary` also finds `beneficiaries`. Wildcards are refused. After upgrading an existing index, run `npm run reindex:stem` once so old articles are covered (it also fills the `START/n:` field) |
 | `budget^2`, `"a b"^3`, `title:budget^1.5` | boost: the match counts that many times more in the **Most relevant** sort (`sort=relevance`); no effect on the date sorts or on which articles match. On terms and phrases only, not groups; not allowed inside `NEAR`/`PRE` |
 | `harvestDate:[2026-10-01 TO 2026-10-12]`, `publishedDate:[2026-10-01 TO *]` | date range, both ends inclusive; a date without a time covers the whole UTC day; `*` leaves a side open. `harvestDate` is when the crawler stored the article (older articles stored before 2026-10-11 may lack it), `publishedDate` is the outlet's date. Not allowed inside `NEAR` |
 

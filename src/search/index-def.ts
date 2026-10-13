@@ -22,6 +22,13 @@ const settings: any = {
         tokenizer: "standard",
         filter: ["lowercase", "decimal_digit", "arabic_normalization"],
       },
+      // Behind `START/n:` only: the same analysis as news_text, on a body that begins with the marker word.
+      news_start: {
+        type: "custom",
+        char_filter: ["body_start_marker"],
+        tokenizer: "standard",
+        filter: ["lowercase", "decimal_digit", "arabic_normalization"],
+      },
       // Behind `stem:` only: the light Arabic stemmer (prefixes like ال/لل/وال, suffixes like ات/ون/ين/ة) and
       // English plurals. The default analyzer stays unstemmed so exact and phrase matches keep their meaning.
       // The Arabic stemmer runs twice: it strips one prefix per pass, so الوزير (the minister) comes out as وزير
@@ -33,6 +40,8 @@ const settings: any = {
       },
     },
     filter: { english_plurals: { type: "stemmer", language: "minimal_english" } },
+    // Puts a marker word in front of the body, so `START/n:` can ask for "within n words of the marker".
+    char_filter: { body_start_marker: { type: "pattern_replace", pattern: "^", replacement: "zzbodystartzz " } },
     normalizer: { lc: { type: "custom", filter: ["lowercase"] } },
   },
 };
@@ -41,7 +50,11 @@ const mappings: any = {
   properties: {
     url: { type: "keyword" },
     title: { type: "text", analyzer: "news_text", fields: { stem: { type: "text", analyzer: "news_stem" } } },
-    body: { type: "text", analyzer: "news_text", fields: { stem: { type: "text", analyzer: "news_stem" } } },
+    body: {
+      type: "text",
+      analyzer: "news_text",
+      fields: { stem: { type: "text", analyzer: "news_stem" }, start: { type: "text", analyzer: "news_start" } },
+    },
     author: { type: "text", analyzer: "news_text" },
     authorshort: { type: "keyword", normalizer: "lc" },
     source: { type: "keyword", normalizer: "lc" },
@@ -60,19 +73,31 @@ const mappings: any = {
 };
 
 /**
- * An index created before `stem:` has no stemmed analyzer, and analyzers are settings, which only change while
- * the index is closed. Adding it takes a moment of closed index at the first start after the upgrade.
+ * An index created before `stem:` or `START/n:` lacks their analyzers, and analyzers are settings, which only
+ * change while the index is closed. Adding or replacing them takes a moment of closed index at the first start
+ * after the upgrade; an index that is already current is left alone.
  */
-async function ensureStemAnalyzer(): Promise<void> {
+const ADDED_ANALYSIS = ["news_stem", "news_start"] as const;
+async function ensureExtraAnalyzers(): Promise<void> {
   const got = await client.indices.getSettings({ index: INDEX });
-  const current = (got.body as any)[INDEX]?.settings?.index?.analysis?.analyzer?.news_stem?.filter;
-  // Also replaces an older definition, so a change to the stemmer reaches indices that already have one.
-  if (JSON.stringify(current) === JSON.stringify(settings.analysis.analyzer.news_stem.filter)) return;
+  const have = (got.body as any)[INDEX]?.settings?.index?.analysis ?? {};
+  const want = settings.analysis;
+  const same =
+    ADDED_ANALYSIS.every((a) => JSON.stringify(have.analyzer?.[a]) === JSON.stringify(want.analyzer[a])) &&
+    JSON.stringify(have.char_filter?.body_start_marker) === JSON.stringify(want.char_filter.body_start_marker) &&
+    JSON.stringify(have.filter?.english_plurals) === JSON.stringify(want.filter.english_plurals);
+  if (same) return;
   await client.indices.close({ index: INDEX });
   try {
     await client.indices.putSettings({
       index: INDEX,
-      body: { analysis: { analyzer: { news_stem: settings.analysis.analyzer.news_stem }, filter: settings.analysis.filter } },
+      body: {
+        analysis: {
+          analyzer: Object.fromEntries(ADDED_ANALYSIS.map((a) => [a, want.analyzer[a]])),
+          filter: want.filter,
+          char_filter: want.char_filter,
+        },
+      },
     });
   } finally {
     await client.indices.open({ index: INDEX });
@@ -84,7 +109,7 @@ export async function ensureIndices(): Promise<void> {
   if (!exists.body) await client.indices.create({ index: INDEX, body: { settings, mappings } });
   // An index created before a field existed gets it added; adding a field never changes existing documents.
   else {
-    await ensureStemAnalyzer();
+    await ensureExtraAnalyzers();
     await client.indices.putMapping({ index: INDEX, body: { properties: mappings.properties } });
   }
   const runs = await client.indices.exists({ index: RUNS_INDEX });

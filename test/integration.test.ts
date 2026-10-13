@@ -45,7 +45,20 @@ describe("search against OpenSearch", () => {
     expect(await ids("beneficiary")).toEqual([]);
     expect(await ids("stem:beneficiary")).toEqual(["2"]);
     expect(await ids("stem:beneficiaries AND sourcetype:blog")).toEqual(["2"]);
-  });  it("explains which clauses of a query matched one article", async () => {
+  });  it("START/n finds a term in the headline or the first n words; MULTIPLE/n counts occurrences in the body", async () => {
+    // 2: title "Citizen account payment date", body "The citizen account programme announced the support ..."
+    // 3: title "Weather", body "citizen walked far away from the account of a long story about the weather today"
+    expect(await ids("START/1:citizen")).toEqual(["2", "3"]); // headline of 2, first body word of 3
+    expect(await ids("START/1:account")).toEqual(["2"]);
+    expect(await ids("START/2:programme")).toEqual([]);
+    expect(await ids("START/4:programme")).toEqual(["2"]);
+    expect(await ids('START/3:"citizen walked"')).toEqual(["3"]);
+    expect(await ids("MULTIPLE/2:the")).toEqual(["2", "3"]);
+    expect(await ids("MULTIPLE/3:the")).toEqual([]);
+    expect(await ids("MULTIPLE/2:(citizen OR account)")).toEqual(["2", "3"]);
+    expect(await ids("MULTIPLE/3:(citizen OR account)")).toEqual([]);
+  });
+  it("explains which clauses of a query matched one article", async () => {
     const tree = await explainMatch({ query: "(citizen OR ماليه OR weather) AND NOT programme AND title:account", id: "2" });
 
     const flat = (n: any): [string, boolean][] => [[n.label, n.matched], ...n.children.flatMap(flat)];

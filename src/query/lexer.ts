@@ -6,6 +6,7 @@ export type Token =
   | { kind: "phrase"; value: string; slop?: number; boost?: number; pos: number }
   | { kind: "word"; value: string; boost?: number; pos: number }
   | { kind: "field"; field: string; pos: number }
+  | { kind: "limit"; op: "start" | "multiple"; n: number; pos: number }
   | { kind: "range"; field: "fetched" | "published"; from?: string; to?: string; pos: number };
 
 // Prefixes before ':' that are treated as field filters; anything else (e.g. https:) stays a word.
@@ -58,6 +59,9 @@ function lexDateRange(input: string, start: number): { token: Token; end: number
   const field = DATE_RANGE_FIELDS[head[1]!.toLowerCase()]!;
   return { token: { kind: "range", field, ...(from && { from }), ...(to && { to }), pos: start }, end: close + 1 };
 }
+
+// `START/5:` and `MULTIPLE/3:` come before the operand they apply to.
+export const LIMIT_PREFIX = /^(START|MULTIPLE)\/(\d+):/;
 
 const WORD_BREAK = /[\s()"]/;
 
@@ -113,12 +117,24 @@ export function lex(input: string): Token[] {
     if (raw === "AND") { out.push({ kind: "and", pos: start }); continue; }
     if (raw === "OR") { out.push({ kind: "or", pos: start }); continue; }
     if (raw === "NOT") { out.push({ kind: "not", pos: start }); continue; }
+    const limit = LIMIT_PREFIX.exec(raw);
+    if (limit) {
+      const n = Number(limit[2]);
+      if (limit[1] === "START" && n < 1) throw new QuerySyntaxError("START needs a word count of at least 1, as in START/5:budget", start);
+      if (limit[1] === "MULTIPLE" && (n < 2 || n > 10)) throw new QuerySyntaxError("MULTIPLE needs a count between 2 and 10, as in MULTIPLE/3:budget", start);
+      out.push({ kind: "limit", op: limit[1] === "START" ? "start" : "multiple", n, pos: start });
+      const rest = raw.slice(limit[0].length);
+      if (rest) out.push(wordToken(rest, start + limit[0].length));
+      continue;
+    }
     const colon = raw.indexOf(":");
     if (colon > 0) {
       const field = FIELD_ALIASES[raw.slice(0, colon).toLowerCase()];
       if (field) {
         out.push({ kind: "field", field, pos: start });
         const rest = raw.slice(colon + 1);
+        const stray = LIMIT_PREFIX.exec(rest);
+        if (stray) throw new QuerySyntaxError(`${stray[1]} works on the headline and body text only: it cannot follow a field prefix such as ${raw.slice(0, colon + 1)}`, start);
         if (rest) out.push(wordToken(rest, start + colon + 1));
         continue;
       }

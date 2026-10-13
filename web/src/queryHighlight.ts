@@ -1,4 +1,4 @@
-import { DATE_RANGE_START, FIELD_ALIASES, PROXIMITY } from "../../src/query/lexer.js";
+import { DATE_RANGE_START, FIELD_ALIASES, LIMIT_PREFIX, PROXIMITY } from "../../src/query/lexer.js";
 
 export type SegmentKind = "space" | "and" | "or" | "not" | "proximity" | "field" | "range" | "phrase" | "term" | "boost" | "paren";
 
@@ -61,6 +61,12 @@ export function highlightQuery(text: string): Segment[] {
       else if (raw === "OR") out.push({ text: raw, kind: "or", start });
       else if (raw === "NOT") out.push({ text: raw, kind: "not", start });
       else if (PROXIMITY.test(raw)) out.push({ text: raw, kind: "proximity", start });
+      else if (LIMIT_PREFIX.test(raw)) {
+        // START/5:budget: the operator, then its operand if it is attached
+        const op = LIMIT_PREFIX.exec(raw)![0];
+        out.push({ text: op, kind: "proximity", start });
+        if (raw.length > op.length) out.push(...termWithBoost(raw.slice(op.length), start + op.length));
+      }
       else if (colon > 0 && FIELD_ALIASES[raw.slice(0, colon).toLowerCase()]) {
         out.push({ text: raw.slice(0, colon + 1), kind: "field", start });
         if (raw.length > colon + 1) out.push(...termWithBoost(raw.slice(colon + 1), start + colon + 1));

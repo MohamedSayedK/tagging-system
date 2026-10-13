@@ -87,6 +87,20 @@ describe("parser", () => {
     expect(() => parse("(a OR b)^2")).toThrow(/term or a phrase/);
     expect(() => parse("a ^2")).toThrow(/term or a phrase/);
   });
+  it("START/n:x and MULTIPLE/n:x are prefix operators on one term, phrase or group", () => {
+    expect(parse("START/5:budget")).toEqual({ type: "start", n: 5, child: { type: "term", value: "budget" } });
+    expect(parse('MULTIPLE/3:"حساب المواطن"')).toEqual({ type: "multiple", n: 3, child: { type: "phrase", value: "حساب المواطن" } });
+    expect(parse("START/10:(a OR b)")).toMatchObject({ type: "start", n: 10, child: { type: "or" } });
+    expect(parse("x AND MULTIPLE/2:y")).toMatchObject({ type: "and", children: [{ type: "term" }, { type: "multiple", n: 2 }] });
+  });
+
+  it("START and MULTIPLE fail loudly when the count is out of range or the operand is missing", () => {
+    expect(() => parse("MULTIPLE/1:a")).toThrow(/2 and 10/);
+    expect(() => parse("MULTIPLE/11:a")).toThrow(/2 and 10/);
+    expect(() => parse("START/0:a")).toThrow(/at least 1/);
+    expect(() => parse("START/5:")).toThrow(QuerySyntaxError);
+    expect(() => parse("START/5: AND b")).toThrow(QuerySyntaxError);
+  });
   it("rejects bad syntax", () => {
     expect(() => parse("(a OR b")).toThrow(QuerySyntaxError);
     expect(() => parse("a OR")).toThrow(QuerySyntaxError);
@@ -158,6 +172,43 @@ describe("compile", () => {
 
   it("stem: refuses wildcards, which have no stem to match", () => {
     expect(() => compileQuery("stem:budg*")).toThrow(/wildcard/i);
+  });
+  it("START/n:x looks in the headline, or in the first n words of the body behind a start marker", () => {
+    const dsl = compileQuery("START/5:budget") as any;
+
+    expect(dsl.bool.minimum_should_match).toBe(1);
+    expect(dsl.bool.should[0]).toEqual({ match_phrase: { title: "budget" } });
+    expect(dsl.bool.should[1]).toEqual({
+      intervals: {
+        "body.start": {
+          all_of: {
+            ordered: true,
+            max_gaps: 4, // the term may begin at word 1 to word 5, which leaves 0 to 4 words after the marker
+            // analysed with the plain body analyzer: the start field would put a second marker in front of the query
+            intervals: [
+              { match: { query: "zzbodystartzz", max_gaps: 0, ordered: true, analyzer: "news_text" } },
+              { match: { query: "budget", max_gaps: 0, ordered: true, analyzer: "news_text" } },
+            ],
+          },
+        },
+      },
+    });
+  });
+
+  it("MULTIPLE/n:x asks the body for n separate matches of the operand", () => {
+    const dsl = compileQuery("MULTIPLE/3:(a OR b)") as any;
+
+    expect(dsl.intervals.body.all_of.ordered).toBe(false);
+    expect(dsl.intervals.body.all_of.intervals).toHaveLength(3);
+    expect(dsl.intervals.body.all_of.intervals[0]).toEqual({ any_of: { intervals: [{ match: { query: "a", max_gaps: 0, ordered: true } }, { match: { query: "b", max_gaps: 0, ordered: true } }] } });
+  });
+
+  it("START and MULTIPLE refuse operands and contexts they cannot honour", () => {
+    expect(() => compileQuery("START/5:(a AND b)")).toThrow(QuerySyntaxError);
+    expect(() => compileQuery("MULTIPLE/2:(a AND b)")).toThrow(QuerySyntaxError);
+    expect(() => compileQuery("sourcetype:START/5:a")).toThrow(/START/);
+    expect(() => compileQuery("stem:MULTIPLE/2:a")).toThrow(/MULTIPLE/);
+    expect(() => compileQuery("START/5:a NEAR/3 b")).toThrow(QuerySyntaxError);
   });
   it("NOT goes to must_not", () => {
     expect(compileQuery("a NOT b")).toMatchObject({ bool: { must: [{}], must_not: [{}] } });

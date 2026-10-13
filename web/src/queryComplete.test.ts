@@ -15,6 +15,10 @@ describe("suggest: fields and operators", () => {
   it("offers stem: for matching other forms of a word", () => {
     expect(labels("ste")).toEqual(["stem:"]);
   });
+  it("offers START/ and MULTIPLE/ while the typed letters are upper case", () => {
+    expect(labels("a STA")).toEqual(["START/"]);
+    expect(labels("a MUL")).toEqual(["MULTIPLE/"]);
+  });
   it("offers operators only while the typed letters are upper case, since operators are case-sensitive", () => {
     expect(labels("a NE")).toEqual(["NEAR/"]);
     expect(labels("a AN")).toEqual(["AND"]);

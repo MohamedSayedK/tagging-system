@@ -43,6 +43,21 @@ describe("highlightQuery: colour classes", () => {
       ["^1.5", "boost"],
     ]);
   });
+  it("colours START/n: and MULTIPLE/n: as proximity operators, apart from their operand", () => {
+    expect(kinds('START/5:budget MULTIPLE/3:"a b" START/2:(x OR y)')).toEqual([
+      ["START/5:", "proximity"],
+      ["budget", "term"],
+      ["MULTIPLE/3:", "proximity"],
+      ['"a b"', "phrase"],
+      ["START/2:", "proximity"],
+      ["(", "paren"],
+      ["x", "term"],
+      ["OR", "or"],
+      ["y", "term"],
+      [")", "paren"],
+    ]);
+  });
+
   it("keeps the phrase slop with its phrase and treats lowercase operators as plain terms", () => {
     expect(kinds('"john kennedy"~2 and')).toEqual([['"john kennedy"~2', "phrase"], ["and", "term"]]);
   });

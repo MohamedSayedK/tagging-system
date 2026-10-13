@@ -118,6 +118,22 @@ describe("demo engine: same answers as the OpenSearch engine", () => {
     expect(index.explain({ query: "citizen", exclude: "programme", id: "2" })).toMatchObject({ matched: true, excluded: true });
     expect(index.explain({ query: "citizen", id: "nope" })).toBeNull();
   });
+  it("START/n finds a term in the headline or the first n words; MULTIPLE/n counts body occurrences", () => {
+    expect(ids("START/1:citizen")).toEqual(["2", "3"]);
+    expect(ids("START/1:account")).toEqual(["2"]);
+    expect(ids("START/2:programme")).toEqual([]);
+    expect(ids("START/4:programme")).toEqual(["2"]);
+    expect(ids('START/3:"citizen walked"')).toEqual(["3"]);
+    expect(ids("MULTIPLE/2:the")).toEqual(["2", "3"]);
+    expect(ids("MULTIPLE/3:the")).toEqual([]);
+    expect(ids("MULTIPLE/2:(citizen OR account)")).toEqual(["2", "3"]);
+    expect(ids("MULTIPLE/3:(citizen OR account)")).toEqual([]);
+  });
+  it("START and MULTIPLE refuse what the real engine refuses", () => {
+    expect(() => index.search({ query: "START/5:(a AND b)" })).toThrow();
+    expect(() => index.search({ query: "stem:(START/5:a)" })).toThrow();
+    expect(() => index.search({ query: "START/5:a NEAR/3 b" })).toThrow();
+  });
   it("stem: refuses wildcards, as the real engine does", () => {
     expect(() => index.search({ query: "stem:benef*" })).toThrow(/wildcard/i);
   });  it("field filters are case-insensitive", () => expect(ids("citizen AND sourcetype:BLOG AND sourcecountry:US")).toEqual(["2", "3"]));

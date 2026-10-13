@@ -22,6 +22,11 @@ function body(n: Node): string {
       return `${DATE_FIELD[n.field]}:[${n.from ?? "*"} TO ${n.to ?? "*"}]`;
     case "field":
       return `${n.field}:${n.child.type === "term" || n.child.type === "phrase" ? unparse(n.child) : `(${unparse(n.child)})`}`;
+    case "start":
+    case "multiple": {
+      const atom = n.child.type === "term" || n.child.type === "phrase";
+      return `${n.type === "start" ? "START" : "MULTIPLE"}/${n.n}:${atom ? unparse(n.child) : `(${unparse(n.child)})`}`;
+    }
     case "not":
       return `NOT ${n.child.type === "term" || n.child.type === "phrase" || n.child.type === "field" || n.child.type === "range" || n.child.type === "not" ? unparse(n.child) : `(${unparse(n.child)})`}`;
     case "or":

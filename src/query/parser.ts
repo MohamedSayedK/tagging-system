@@ -11,7 +11,7 @@ export function parse(input: string): Node {
   const next = () => tokens[p++]!;
 
   const startsOperand = (t: Token | undefined) =>
-    !!t && (t.kind === "lparen" || t.kind === "word" || t.kind === "phrase" || t.kind === "field" || t.kind === "range" || t.kind === "not");
+    !!t && (t.kind === "lparen" || t.kind === "word" || t.kind === "phrase" || t.kind === "field" || t.kind === "range" || t.kind === "limit" || t.kind === "not");
 
   function parseOr(): Node {
     const kids = [parseAnd()];
@@ -59,6 +59,7 @@ export function parse(input: string): Node {
       case "word": return { type: "term", value: t.value, ...(t.boost !== undefined && { boost: t.boost }) };
       case "phrase": return { type: "phrase", value: t.value, ...(t.slop !== undefined && { slop: t.slop }), ...(t.boost !== undefined && { boost: t.boost }) };
       case "field": return { type: "field", field: t.field, child: parseAtom() };
+      case "limit": return { type: t.op, n: t.n, child: parseAtom() };
       case "range": return { type: "range", field: t.field, ...(t.from && { from: t.from }), ...(t.to && { to: t.to }) };
       default: throw new QuerySyntaxError(`Unexpected ${t.kind.toUpperCase()}`, t.pos);
     }

@@ -85,3 +85,7 @@ None: no open row has gone two sessions untouched.
 
 - Work was committed on branch `feature/editor-search-ingestion` (four commits, not pushed, not merged) before this; the explain work is on top of it.
 - D-041: `explainTree` + `unparse` (pure, `src/query`), `explainMatch` (msearch of every clause against one article), `GET /topics/:id/explain/:articleId`, `WhyMatched` in the results list, demo engine route. 497 tests pass.
+
+## Addendum 9: START/n and MULTIPLE/n (2026-10-14)
+
+- D-042. Lexer `limit` token, AST `start`/`multiple`, compile via `body.start` (marker-word analyzer; match rules analysed with `news_text` so the query text gets no second marker) and repeated `intervals`. Demo engine, editor colours/completion, unparse and explain all handle them. After deploying, `npm run reindex:stem` fills `body.start` for stored articles. 508 tests pass.
