@@ -2,7 +2,9 @@
 import { discover } from "../registry/discover.js";
 import { countryOf, isAggregator, loadOverrides } from "../registry/overrides.js";
 import { promoteBatch } from "../registry/promoteBatch.js";
+import { catalogDomains } from "../registry/catalog.js";
 import { loadScope } from "../registry/scope.js";
+import { openSearchCatalog } from "../search/catalogStore.js";
 import { queryWikidata, seedFromWikidata } from "../registry/wikidata.js";
 import { openSearchPromotions } from "../search/promotionStore.js";
 import { openSearchRegistry } from "../search/registryStore.js";
@@ -53,7 +55,7 @@ export async function promoteFromRegistry({
 }) {
   const promotions = openSearchPromotions();
   const overrides = loadOverrides();
-  const scope = loadScope(process.env, overrides);
+  const scope = loadScope(process.env, overrides, catalogDomains(await openSearchCatalog().all()));
   return promoteBatch({
     isAggregator: (d) => isAggregator(d, overrides),
     inScope: scope.allows,

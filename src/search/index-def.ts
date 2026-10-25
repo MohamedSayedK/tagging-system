@@ -7,6 +7,7 @@ export const REGISTRY_INDEX = process.env.REGISTRY_INDEX ?? "source_registry";
 export const REGISTRY_STATE_INDEX = `${REGISTRY_INDEX}_state`;
 export const CRAWL_SOURCES_INDEX = process.env.CRAWL_SOURCES_INDEX ?? "crawl_sources";
 export const LEASE_INDEX = process.env.LEASE_INDEX ?? "worker_lease";
+export const CATALOG_INDEX = process.env.CATALOG_INDEX ?? "source_catalog";
 
 export const client = new Client({ node: process.env.OPENSEARCH_URL ?? "http://localhost:9200" });
 
@@ -159,6 +160,23 @@ export async function ensureIndices(): Promise<void> {
             // The feed list and rejection reasons are read back whole, never searched.
             source: { type: "object", enabled: false },
             rejected: { type: "object", enabled: false },
+          },
+        },
+      },
+    });
+  const catalog = await client.indices.exists({ index: CATALOG_INDEX });
+  if (!catalog.body)
+    await client.indices.create({
+      index: CATALOG_INDEX,
+      body: {
+        settings: { number_of_shards: 1, number_of_replicas: 0 },
+        mappings: {
+          properties: {
+            id: { type: "keyword" },
+            domain: { type: "keyword" },
+            // The business record is kept whole as given (its fields and their types are theirs), never searched.
+            record: { type: "object", enabled: false },
+            verification: { properties: { status: { type: "keyword" }, checkedAt: { type: "date" }, identity: { type: "keyword" } } },
           },
         },
       },

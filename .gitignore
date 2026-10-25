@@ -14,3 +14,6 @@ Thumbs.db
 .impeccable/live/
 .impeccable/questions/
 site/app/
+
+# business-provided source lists: not for the public repo
+business-input/

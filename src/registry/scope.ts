@@ -18,15 +18,20 @@ const matches = (set: Set<string>, domain: string) => {
  * publishers, outlets known to be in an Arab state or a neighbour (Turkey, Iran, Israel, Cyprus). Without it
  * the busiest domains in the world crowd out the brief (stock-price spam, Asian dailies).
  * `PROMOTE_SCOPE=all` drops the region rule; `include:` and `blocked:` in registry-overrides.yaml are the
- * owner's say, and the blocklist always wins.
+ * owner's say, and the blocklist always wins. The business source catalog (ADR 0001) is the owner's say too:
+ * its crawlable domains are let in like `include:`, its held ones kept out like `blocked:`.
  */
-export function loadScope(env: Record<string, string | undefined> = process.env, overrides: Overrides = loadOverrides()): CrawlScope {
+export function loadScope(
+  env: Record<string, string | undefined> = process.env,
+  overrides: Overrides = loadOverrides(),
+  catalog: { crawlable: Set<string>; held: Set<string> } = { crawlable: new Set(), held: new Set() },
+): CrawlScope {
   const mode = env.PROMOTE_SCOPE?.trim() || "regional";
   if (mode !== "regional" && mode !== "all") throw new Error(`PROMOTE_SCOPE must be "regional" or "all", got "${mode}"`);
   return {
     allows(domain, languages = [], country) {
-      if (matches(overrides.blocked, domain)) return false;
-      if (mode === "all" || matches(overrides.include, domain)) return true;
+      if (matches(overrides.blocked, domain) || matches(catalog.held, domain)) return false;
+      if (mode === "all" || matches(overrides.include, domain) || matches(catalog.crawlable, domain)) return true;
       return isMena(domain, languages, country);
     },
   };

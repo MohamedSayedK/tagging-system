@@ -38,6 +38,20 @@ describe("crawl scope: owner lists", () => {
   });
 });
 
+describe("crawl scope: the business source catalog (ADR 0001)", () => {
+  const catalog = { crawlable: new Set(["thehindu.com", "both.example"]), held: new Set(["forbidden.example"]) };
+  const scope = loadScope({}, parseOverrides("blocked:\n  - both.example\n"), catalog);
+
+  it("lets a catalog domain in despite the region rule, and keeps a held one out even when it is regional", () => {
+    expect(scope.allows("thehindu.com", ["eng"], "IN")).toBe(true);
+    expect(scope.allows("forbidden.example", ["ara"], "SA")).toBe(false);
+  });
+
+  it("still lets the blocklist win over the catalog", () => {
+    expect(scope.allows("both.example")).toBe(false);
+  });
+});
+
 describe("crawl scope: PROMOTE_SCOPE", () => {
   it("all drops the region rule but keeps the blocklist", () => {
     const scope = scopeOf("blocked:\n  - tickerreport.com\n", { PROMOTE_SCOPE: "all" });

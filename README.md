@@ -45,6 +45,18 @@ Seeding and promotion fetch other people's sites and a public directory, so they
 
 `GET /registry?lang=ar&q=news&hideAggregators=true&from=0&size=50` lists domains, most articles seen first, each with `country`, `aggregator` and `crawl` (the outcome of the last promotion attempt). `lang` takes `ar` or `ara`. The UI shows it on the **Registry** tab (hidden in the public demo).
 
+## Business source catalog
+
+A source list supplied by the business (one JSON file of outlets, each with its own ID, country, priority, homepage and audit fields) is loaded into its own index, `source_catalog`, kept whole; see `docs/adr/0001-business-source-catalog.md`. Keep the file outside git (`business-input/` is ignored).
+
+| Step | Command | What it does |
+|---|---|---|
+| Import | `npm run catalog:import -- <file.json>` | Stores every record under its ID and checks that all the file declares is stored. Safe to repeat: business fields are replaced, our verification results are kept, nothing is dropped |
+| Verify | `npm run catalog:verify -- [--limit 100] [--concurrency 6] [--retry-days 7]` | For crawlable records, P1 first, one check per domain: robots.txt, homepage, feeds (the same discovery and validation as Promote), and whether the homepage's own name matches the record's. A working feed becomes a crawl source. Failures are retried after `--retry-days` |
+| Report | `npm run catalog:report -- [out.csv]` | One row per record: the business fields, then whether it is crawled and why not (default `business-input/catalog-report.csv`) |
+
+Catalog domains are crawled whatever their region (`blocked:` still wins). Records whose `crawl_handling` is `hold_*`, `quarantine_*` or `archive_*` are kept but never fetched, and their domains are not crawled even when promotion had found a feed; curated `sources.yaml` entries are not affected. The identity check is evidence only: it does not confirm publisher terms or permissions.
+
 ## Running it for real
 
 ```bash
