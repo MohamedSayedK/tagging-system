@@ -52,7 +52,7 @@ describe("source catalog: which domains may be crawled", () => {
   const entries = (...rows: [string, string, string][]) =>
     parseCatalog(file(rows.map(([id, url, crawl_handling]) => record({ id, homepage_url: url, crawl_handling })))).entries;
 
-  it("allows domains to verify or check, holds those on hold, quarantined or archive-only", () => {
+  it("allows every domain but those quarantined or archive-only, including ones the business had on hold (owner, 2026-10-26)", () => {
     const { crawlable, held } = catalogDomains(
       entries(
         ["A", "https://verify.example", "candidate_verify_first"],
@@ -63,21 +63,20 @@ describe("source catalog: which domains may be crawled", () => {
       ),
     );
 
-    expect([...crawlable].sort()).toEqual(["seen.example", "verify.example"]);
-    expect([...held].sort()).toEqual(["forbidden.example", "old.example", "wrong.example"]);
+    expect([...crawlable].sort()).toEqual(["forbidden.example", "seen.example", "verify.example"]);
+    expect([...held].sort()).toEqual(["old.example", "wrong.example"]);
   });
 
-  it("allows a shared domain when any of its sections may be crawled, and holds an unknown rule", () => {
+  it("allows a shared domain when any of its sections may be crawled", () => {
     const { crawlable, held } = catalogDomains(
       entries(
-        ["A", "https://bbc.com/arabic", "hold_check_access_policies"],
+        ["A", "https://bbc.com/arabic", "quarantine_do_not_crawl"],
         ["B", "https://www.bbc.com/news", "candidate_verify_first"],
-        ["C", "https://odd.example", "something_new"],
       ),
     );
 
     expect([...crawlable]).toEqual(["bbc.com"]);
-    expect([...held]).toEqual(["odd.example"]);
+    expect([...held]).toEqual([]);
   });
 });
 
@@ -121,7 +120,7 @@ describe("source catalog: the report for business", () => {
       { id: "A", domain: "arabnews.com", record: record({ id: "A", name: "Arab News" }) },
       { id: "B", domain: "good.com", record: record({ id: "B", name: "Good Daily" }), verification: { status: "active", checkedAt: at, identity: "name_matches", siteName: "Good Daily" } },
       { id: "C", domain: "nofeed.com", record: record({ id: "C", name: "No Feed" }), verification: { status: "no_feed", checkedAt: at, identity: "name_not_found", reason: "too few items (1)" } },
-      { id: "D", domain: "forbidden.example", record: record({ id: "D", crawl_handling: "hold_check_access_policies" }) },
+      { id: "D", domain: "old.example", record: record({ id: "D", crawl_handling: "archive_only_do_not_crawl" }) },
       { id: "E", domain: "later.example", record: record({ id: "E" }) },
     ],
     { curatedDomains: new Set(["arabnews.com"]), crawledDomains: new Set(["good.com"]) },
@@ -133,7 +132,7 @@ describe("source catalog: the report for business", () => {
     expect(state("A")).toBe("crawled (curated source)");
     expect(state("B")).toBe("crawled");
     expect(state("C")).toBe("not crawled: no_feed");
-    expect(state("D")).toBe("held by business rule: hold_check_access_policies");
+    expect(state("D")).toBe("held by business rule: archive_only_do_not_crawl");
     expect(state("E")).toBe("waiting for verification");
   });
 

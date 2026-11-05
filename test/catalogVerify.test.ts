@@ -66,10 +66,56 @@ describe("verifyCatalog", () => {
     expect(good?.source).toMatchObject({ name: "Good Daily", country: "EG", feeds: [{ url: "https://good.com/rss", kind: "rss" }] });
   });
 
-  it("never fetches records on hold, quarantined or archive-only", async () => {
+  it("makes a source of a business site whose feed is thin or slow, since the owner chose the site", async () => {
+    const twoMonthsAgo = new Date(NOW.getTime() - 60 * 86_400_000).toUTCString();
+    const thin = `<?xml version="1.0"?><rss version="2.0"><channel><item><title>The only headline we published</title><link>https://thin.com/n/1</link><pubDate>${twoMonthsAgo}</pubDate></item></channel></rss>`;
+    const thinSite = async (url: string) => {
+      const { pathname } = new URL(url);
+      if (pathname === "/robots.txt") return "";
+      if (pathname === "/") return `<html><head><link rel="alternate" type="application/rss+xml" href="/rss"></head></html>`;
+      if (pathname === "/rss") return thin;
+      throw new Error("HTTP 404");
+    };
+
+    const { result, promotions } = await run([entry("T", "thin.com", "Thin News")], { fetchText: thinSite });
+
+    expect(result.tally).toEqual({ active: 1 });
+    expect(promotions[0]?.source?.feeds).toEqual([{ url: "https://thin.com/rss", kind: "rss" }]);
+  });
+
+  it("falls back to the front page headlines for a business site that publishes no feed", async () => {
+    const front = Array.from({ length: 6 }, (_, i) => `<a href="/news/2026/10/story-number-${i}-about-the-economy">Economy story number ${i} grips the nation today</a>`).join("");
+    const noFeedSite = async (url: string) => {
+      const { pathname } = new URL(url);
+      if (pathname === "/robots.txt") return "";
+      if (pathname === "/") return `<html><body>${front}</body></html>`;
+      throw new Error("HTTP 404");
+    };
+
+    const { result, promotions } = await run([entry("H", "headlines.com", "Headlines Daily")], { fetchText: noFeedSite });
+
+    expect(result.tally).toEqual({ active: 1 });
+    expect(promotions[0]?.source?.feeds).toEqual([{ url: "https://headlines.com/", kind: "html" }]);
+  });
+
+  it("does not take a front page with only a couple of article links for a source", async () => {
+    const front = `<a href="/news/2026/10/one-story-about-the-economy">One story about the economy today</a>`;
+    const sparse = async (url: string) => {
+      const { pathname } = new URL(url);
+      if (pathname === "/robots.txt") return "";
+      if (pathname === "/") return `<html><body>${front}</body></html>`;
+      throw new Error("HTTP 404");
+    };
+
+    const { result } = await run([entry("S", "sparse.com", "Sparse News")], { fetchText: sparse });
+
+    expect(result.tally).toEqual({ no_feed: 1 });
+  });
+
+  it("never fetches records quarantined or archive-only", async () => {
     fetched.length = 0;
     const { result, verified } = await run([
-      entry("H", "good.com", "Good Daily", "hold_check_access_policies"),
+      entry("A", "good.com", "Good Daily", "archive_only_do_not_crawl"),
       entry("Q", "other.com", "Something Else", "quarantine_do_not_crawl"),
     ]);
 
@@ -137,5 +183,11 @@ describe("verifyCatalog", () => {
     const { verified } = await run([entry("A", "amp.com", "Salt & Pepper")]);
 
     expect(verified.get("A")).toMatchObject({ siteName: "Salt & Pepper – News!", identity: "name_matches" });
+  });
+
+  it("checks records the business had on hold like any other (owner, 2026-10-26)", async () => {
+    const { verified } = await run([entry("H", "good.com", "Good Daily", "hold_check_access_policies")]);
+
+    expect(verified.get("H")?.status).toBe("active");
   });
 });

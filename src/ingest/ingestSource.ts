@@ -67,7 +67,7 @@ export async function ingestSource(src: Omit<Source, "interval" | "maxItems" | "
   const feedErrors: string[] = [];
   for (const feed of src.feeds) {
     try {
-      items.push(...parseFeed(await fetchFeedText(feed.url), feed.kind));
+      items.push(...parseFeed(await fetchFeedText(feed.url), feed.kind, feed.url));
     } catch (e) {
       feedErrors.push((e as Error).message);
       console.warn(`[${src.name}] feed failed ${feed.url}: ${(e as Error).message}`);

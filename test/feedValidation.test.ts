@@ -52,6 +52,22 @@ describe("validateFeed", () => {
     expect(result).toMatchObject({ ok: false, reason: expect.stringMatching(/too few/i) });
   });
 
+  it("accepts a feed with a single item when the caller lowers the minimum", async () => {
+    const fetchText = serve({ "https://example.com/feed": rss([item(1)]) });
+
+    const result = await validateFeed({ url: "https://example.com/feed", kind: "rss" }, "example.com", fetchText, { now: NOW, minItems: 1 });
+
+    expect(result).toMatchObject({ ok: true, items: 1 });
+  });
+
+  it("still rejects a feed with no items at all when the minimum is lowered", async () => {
+    const fetchText = serve({ "https://example.com/feed": rss([]) });
+
+    const result = await validateFeed({ url: "https://example.com/feed", kind: "rss" }, "example.com", fetchText, { now: NOW, minItems: 1 });
+
+    expect(result).toMatchObject({ ok: false, reason: expect.stringMatching(/too few/i) });
+  });
+
   it("rejects a feed whose items mostly link to other sites", async () => {
     const fetchText = serve({
       "https://example.com/feed": rss(five((n) => ({ link: `https://ads.example.net/offer/${n}` }))),
@@ -79,6 +95,24 @@ describe("validateFeed", () => {
     const result = await validateFeed({ url: "https://example.com/feed", kind: "rss" }, "example.com", fetchText, { now: NOW });
 
     expect(result).toMatchObject({ ok: false, reason: expect.stringMatching(/stale|old/i) });
+  });
+
+  it("accepts a feed whose newest item is two months old when the caller allows 180 days", async () => {
+    const old = five((n) => ({ pubDate: new Date(NOW.getTime() - (60 + n) * 86_400_000).toUTCString() }));
+    const fetchText = serve({ "https://example.com/feed": rss(old) });
+
+    const result = await validateFeed({ url: "https://example.com/feed", kind: "rss" }, "example.com", fetchText, { now: NOW, maxAgeDays: 180 });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("still rejects a feed that has been dead for over the allowed age", async () => {
+    const old = five((n) => ({ pubDate: new Date(NOW.getTime() - (300 + n) * 86_400_000).toUTCString() }));
+    const fetchText = serve({ "https://example.com/feed": rss(old) });
+
+    const result = await validateFeed({ url: "https://example.com/feed", kind: "rss" }, "example.com", fetchText, { now: NOW, maxAgeDays: 180 });
+
+    expect(result).toMatchObject({ ok: false, reason: expect.stringMatching(/stale/i) });
   });
 
   it("accepts an undated feed but says so, since new articles will be stamped when first seen", async () => {

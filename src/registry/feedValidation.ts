@@ -40,7 +40,7 @@ export async function validateFeed(
   candidate: FeedCandidate,
   domain: string,
   fetchText: (url: string) => Promise<string>,
-  options: { now?: Date } = {},
+  options: { now?: Date; minItems?: number; maxAgeDays?: number } = {},
 ): Promise<FeedValidation> {
   const now = (options.now ?? new Date()).getTime();
   let url = candidate.url;
@@ -71,14 +71,14 @@ export async function validateFeed(
   } catch (e) {
     return refuse(`not a feed (${(e as Error).message})`);
   }
-  if (items.length < MIN_ITEMS) return refuse(`too few items (${items.length})`);
+  if (items.length < (options.minItems ?? MIN_ITEMS)) return refuse(`too few items (${items.length})`);
 
   const same = items.filter((i) => sameSite(i.url, domain)).length;
   if (same / items.length < MIN_SAME_SITE_SHARE) return refuse("items link to other sites");
 
   const times = items.map((i) => (i.published ? Date.parse(i.published) : NaN)).filter((t) => !Number.isNaN(t));
   const newestMs = times.length ? Math.max(...times) : undefined;
-  if (newestMs !== undefined && now - newestMs > MAX_NEWEST_AGE_MS) {
+  if (newestMs !== undefined && now - newestMs > (options.maxAgeDays !== undefined ? options.maxAgeDays * 86_400_000 : MAX_NEWEST_AGE_MS)) {
     const days = Math.floor((now - newestMs) / 86_400_000);
     return refuse(`stale: newest item is ${days} days old`);
   }

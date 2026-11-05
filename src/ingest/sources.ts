@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { parse } from "yaml";
 import { parseDuration } from "./scheduler.js";
 
-export interface FeedRef { url: string; kind: "rss" | "sitemap" }
+export interface FeedRef { url: string; kind: "rss" | "sitemap" | "html" }
 export interface Source {
   name: string;
   domain: string;

@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { parseHeadlines } from "./headlines.js";
 
 export interface FeedItem {
   url: string;
@@ -33,7 +34,9 @@ export function parseSitemapIndex(body: string): string[] {
     .filter((u): u is string => Boolean(u));
 }
 
-export function parseFeed(body: string, kind: "rss" | "sitemap"): FeedItem[] {
+/** `baseUrl` is the feed's own URL; it resolves the links of an `html` page of headlines. */
+export function parseFeed(body: string, kind: "rss" | "sitemap" | "html", baseUrl = ""): FeedItem[] {
+  if (kind === "html") return parseHeadlines(body, baseUrl);
   const doc = xml.parse(body);
   if (kind === "sitemap") {
     return arr<any>(doc.urlset?.url)

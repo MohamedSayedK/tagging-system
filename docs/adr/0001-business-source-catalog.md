@@ -1,6 +1,6 @@
 # 0001 — Business source catalog, outside the regional crawl scope
 
-Status: Accepted (2026-10-25)
+Status: Accepted (2026-10-25); point 3 amended by ADR 0002 (2026-10-26)
 
 ## Context
 

@@ -60,15 +60,15 @@ function hostOf(url: string): string | undefined {
   }
 }
 
-// The business's own crawl rules (`crawl_handling`) that allow collection once our checks pass. Anything else,
-// including a rule we do not know yet, keeps the record out of the crawl.
-const CRAWLABLE_RULES = new Set(["candidate_verify_first", "candidate_check_permissions"]);
+// The owner treats every business record as one to verify, whatever its `crawl_handling`, except those
+// quarantined (wrong publisher) or archive-only (ADR 0002). Those stay in the catalog and are never fetched.
+const NEVER_CRAWLED = /^(quarantine|archive)/;
 
-export const isCrawlable = (e: CatalogEntry) => CRAWLABLE_RULES.has(String(e.record.crawl_handling));
+export const isCrawlable = (e: CatalogEntry) => !NEVER_CRAWLED.test(String(e.record.crawl_handling ?? ""));
 
 /**
  * Catalog domains by what the business allows: `crawlable` when at least one of its records may be crawled,
- * `held` when none may (on hold, quarantined, archive only). Both bypass the region rule; see ADR 0001.
+ * `held` when none may (quarantined, archive only). Both bypass the region rule; see ADR 0001 and 0002.
  */
 export function catalogDomains(entries: CatalogEntry[]): { crawlable: Set<string>; held: Set<string> } {
   const crawlable = new Set(entries.filter(isCrawlable).map((e) => e.domain));

@@ -16,6 +16,7 @@
     "discover:gdelt": "tsx src/ingest/discoverGdelt.ts",
     "promote": "tsx src/ingest/promoteRegistry.ts",
     "catalog:import": "tsx src/ingest/catalogImport.ts",
+    "catalog:from-newsdesk": "tsx src/ingest/catalogFromNewsdesk.ts",
     "catalog:verify": "tsx src/ingest/catalogVerify.ts",
     "catalog:report": "tsx src/ingest/catalogReport.ts",
     "seed:wikidata": "tsx src/ingest/seedWikidata.ts",

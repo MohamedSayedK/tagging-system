@@ -1,8 +1,11 @@
 import { countryCode } from "../query/compile.js";
 import { isCrawlable, type CatalogEntry, type CatalogVerification } from "./catalog.js";
+import { decodeEntities } from "../ingest/headlines.js";
 import { promoteDomain, type Promotion, type PromotionStatus } from "./promote.js";
 
 const DEFAULT_RETRY_DAYS = 7;
+/** The owner chose these sites, so a thin or slow feed is still worth reading for headlines. */
+const CATALOG_FEED_VALIDATION = { minItems: 1, maxAgeDays: 180 };
 
 export interface VerifyCatalogOptions {
   entries: CatalogEntry[];
@@ -75,7 +78,7 @@ async function verifyDomain(domain: string, lead: CatalogEntry, o: VerifyCatalog
   };
   const name = String(lead.record.name ?? domain);
   const country = countryOf(lead.record.country);
-  const promotion = await promoteDomain(domain, fetchText, { now: o.now, countryOf: () => country });
+  const promotion = await promoteDomain(domain, fetchText, { now: o.now, countryOf: () => country, validation: CATALOG_FEED_VALIDATION, headlines: true });
   if (promotion.source) promotion.source.name = name;
   await o.savePromotion(promotion);
 
@@ -112,14 +115,6 @@ function siteNameOf(html: string): string | undefined {
   const name = meta && decodeEntities(meta).replace(/\s+/g, " ").trim();
   return name || undefined;
 }
-
-const NAMED: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
-const decodeEntities = (s: string) =>
-  s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
-    if (e[0] !== "#") return NAMED[e.toLowerCase()] ?? m;
-    const code = e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : Number(e.slice(1));
-    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m;
-  });
 
 const words = (s: string) =>
   s
