@@ -20,4 +20,4 @@ COPY src ./src
 COPY --from=build /app/web/dist ./web/dist
 USER node
 EXPOSE 3000
-CMD ["npm", "run", "api"]
+CMD ["sh", "-c", "exec npm run ${SERVICE_CMD:-api}"]
