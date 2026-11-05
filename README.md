@@ -55,7 +55,7 @@ A source list supplied by the business (one JSON file of outlets, each with its 
 | Verify | `npm run catalog:verify -- [--limit 100] [--concurrency 6] [--retry-days 7]` | For crawlable records, P1 first, one check per domain: robots.txt, homepage, feeds (the same discovery and validation as Promote), and whether the homepage's own name matches the record's. A working feed becomes a crawl source. Failures are retried after `--retry-days` |
 | Report | `npm run catalog:report -- [out.csv]` | One row per record: the business fields, then whether it is crawled and why not (default `business-input/catalog-report.csv`) |
 
-Catalog domains are crawled whatever their region (`blocked:` still wins). Records whose `crawl_handling` is `hold_*`, `quarantine_*` or `archive_*` are kept but never fetched, and their domains are not crawled even when promotion had found a feed; curated `sources.yaml` entries are not affected. The identity check is evidence only: it does not confirm publisher terms or permissions.
+Catalog domains are crawled whatever their region (`blocked:` still wins). Every record is verified whatever its `crawl_handling` (the owner's call, ADR 0002), except `quarantine_*` and `archive_*` records: those are kept but never fetched, and their domains are not crawled even when promotion had found a feed; curated `sources.yaml` entries are not affected. The identity check is evidence only: it does not confirm publisher terms or permissions.
 
 ## Running it for real
 
