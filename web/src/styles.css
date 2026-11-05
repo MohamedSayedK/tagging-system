@@ -318,15 +318,17 @@ mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 3
 .sources-head h2 { margin: 0; font-size: 32px; line-height: 1.15; letter-spacing: -0.02em; }
 .sources-head p { margin: 0; color: var(--muted); font-size: 16px; }
 
-.attention { margin-bottom: 24px; padding: 16px 20px 8px; border: 1px solid var(--err-line); border-radius: var(--radius); background: var(--err-wash); }
-.attention h3 { margin: 0 0 8px; font-size: 16px; color: var(--err-title); }
-.attention ul { list-style: none; margin: 0; padding: 0; }
-.attention li { display: grid; gap: 2px 14px; grid-template-columns: minmax(140px, 220px) 1fr; padding: 10px 0; border-top: 1px solid var(--err-line-soft); }
-.attention li:first-child { border-top: 0; }
-.attention strong { font-size: 16px; color: var(--ink); }
-.attention li > span { color: var(--err-ink); font-size: 15px; }
-.attention code { grid-column: 2; background: var(--field); border: 1px solid var(--err-line-soft); color: var(--err-ink); word-break: break-all; }
 
+.source-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line-strong); }
+.source-tabs button { font: 600 15px var(--ui); padding: 10px 16px; margin-bottom: -1px; border: 1px solid transparent; border-radius: var(--radius) var(--radius) 0 0; background: transparent; color: var(--muted); }
+.source-tabs button[aria-selected="true"] { background: var(--sheet); color: var(--ink); border-color: var(--line-strong); border-bottom-color: var(--sheet); }
+.source-tabs button:hover:not([aria-selected="true"]) { background: var(--wash); color: var(--ink); }
+.source-tabs .n { margin-inline-start: 4px; font-weight: 500; opacity: 0.75; }
+.source-tabs [data-tab="failing"][aria-selected="true"] { color: var(--err-title); }
+.pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 16px; font-size: 15px; color: var(--muted); }
+.pager button { font: 600 15px var(--ui); padding: 8px 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--sheet); color: var(--ink); }
+.pager button:hover:not(:disabled) { background: var(--wash); }
+.pager button:disabled { background: var(--disabled-bg); color: var(--disabled-ink); border-color: transparent; }
 .sources-tools { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-bottom: 16px; }
 .sources-tools input[type="search"] { flex: 1 1 280px; max-width: 460px; padding: 10px 14px; font: 500 15px var(--ui); border: 1px solid var(--line-strong); border-radius: 8px; background: var(--field); color: var(--ink); }
 .segmented .n { margin-inline-start: 4px; font-weight: 500; opacity: 0.75; }
@@ -369,8 +371,6 @@ mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 3
 
 @media (max-width: 760px) {
   .sources-page { padding: 20px 16px 72px; }
-  .attention li { grid-template-columns: 1fr; }
-  .attention code { grid-column: 1; }
 }
 /* ---------- states ---------- */
 .hint { padding: 16px; color: var(--muted); }
@@ -573,7 +573,7 @@ main { padding: 0 0 72px; min-width: 0; container-type: inline-size; }
 .topic-query[data-open="false"] .query-code { max-height: 5.2em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
 .query-more { margin-top: 4px; padding: 0; border: 0; background: transparent; color: var(--blue); font: 700 13px var(--ui); text-decoration: underline; text-underline-offset: 3px; }
 .topic-actions button { border-radius: 4px; background: var(--sheet); font: 600 14px var(--ui); }
-.editor-form, .chart, .box, .sources-table-wrap, .attention, .empty { border-radius: 3px; }
+.editor-form, .chart, .box, .sources-table-wrap, .empty { border-radius: 3px; }
 .editor-form input, .editor-form textarea, .query-box, .inline select, .more, .back, .notice.error, .range input, code { border-radius: 4px; }
 
 /* list header and day headers */
